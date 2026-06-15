@@ -40,7 +40,7 @@ redis_client = redis.from_url(
     os.environ.get("REDIS_URL", "redis://localhost:6379"),
     decode_responses=True
 )
-SESSION_TTL = 60 * 60 * 24  # 24 hours for booking sessions
+SESSION_TTL = 60 * 60 * 24
 
 def get_session(phone: str) -> dict:
     data = redis_client.get(f"razali:session:{phone}")
@@ -54,24 +54,24 @@ def get_session(phone: str) -> dict:
         "master_id": None,
         "date": None,
         "time": None,
-        "customer_name": None
+        "customer_name": None,
+        "cancel_booking": None  # stores booking to cancel
     }
 
 def save_session(phone: str, session: dict):
     redis_client.setex(f"razali:session:{phone}", SESSION_TTL, json.dumps(session))
 
-def clear_session(phone: str):
-    session = get_session(phone)
-    lang = session.get("lang")
+def clear_booking_session(phone: str, lang: str) -> dict:
     new_session = {
         "lang": lang,
-        "state": "IDLE",
+        "state": "CHOOSING_CATEGORY",
         "category": None,
         "service_id": None,
         "master_id": None,
         "date": None,
         "time": None,
-        "customer_name": None
+        "customer_name": None,
+        "cancel_booking": None
     }
     save_session(phone, new_session)
     return new_session
@@ -118,11 +118,11 @@ def get_google_client(force_refresh: bool = False):
         log("info", "Google Sheets client initialized")
     return _sheets_client
 
-# ─── In-memory data cache ─────────────────────────────────────────────────────
-MASTERS = {}       # {id: {name, mon, tue, ..., start_time, end_time}}
-SERVICES = {}      # {id: {category, name, price}}
-DURATIONS = {}     # {(master_id, service_id): duration_mins}
-CATEGORIES = []    # ["Nails", "Hair", "Makeup"]
+# ─── Data cache ───────────────────────────────────────────────────────────────
+MASTERS = {}
+SERVICES = {}
+DURATIONS = {}
+CATEGORIES = []
 
 def load_data():
     global MASTERS, SERVICES, DURATIONS, CATEGORIES
@@ -130,7 +130,6 @@ def load_data():
         client = get_google_client()
         db = client.open("RAZALI_DB")
 
-        # Load masters
         masters_sheet = db.worksheet("Masters")
         new_masters = {}
         for row in masters_sheet.get_all_records():
@@ -148,7 +147,6 @@ def load_data():
                 "end_time": str(row.get("end_time", "19:00"))
             }
 
-        # Load services
         services_sheet = db.worksheet("Services")
         new_services = {}
         new_categories = []
@@ -163,7 +161,6 @@ def load_data():
             if cat not in new_categories:
                 new_categories.append(cat)
 
-        # Load durations
         duration_sheet = db.worksheet("Service_Duration")
         new_durations = {}
         for row in duration_sheet.get_all_records():
@@ -178,34 +175,25 @@ def load_data():
     except Exception as e:
         log("error", "Failed to load data", error=str(e))
 
-# ─── Slot availability engine ─────────────────────────────────────────────────
+# ─── Slot availability ────────────────────────────────────────────────────────
 def get_available_slots(master_id: str, service_id: str, date_str: str) -> list:
-    """Returns list of available time strings e.g. ['09:00', '10:00', ...]"""
     try:
         master = MASTERS.get(master_id)
         if not master:
             return []
-
         duration = DURATIONS.get((master_id, service_id), 60)
         date = datetime.strptime(date_str, "%Y-%m-%d")
-        day_name = date.strftime("%a").lower()  # mon, tue, etc.
-
-        # Check if master works this day
+        day_name = date.strftime("%a").lower()
         if not master.get(day_name, False):
             return []
-
-        # Build working hours slots (every 30 min)
         start_h, start_m = map(int, master["start_time"].split(":"))
         end_h, end_m = map(int, master["end_time"].split(":"))
         start = datetime(date.year, date.month, date.day, start_h, start_m)
         end = datetime(date.year, date.month, date.day, end_h, end_m)
-
-        # Get existing bookings for this master on this date
         client = get_google_client()
         db = client.open("RAZALI_DB")
         bookings_sheet = db.worksheet("Bookings")
         all_bookings = bookings_sheet.get_all_records()
-
         booked_slots = []
         for b in all_bookings:
             if (str(b.get("master_id")) == master_id and
@@ -218,13 +206,10 @@ def get_available_slots(master_id: str, service_id: str, date_str: str) -> list:
                     bstart = datetime(date.year, date.month, date.day, bh, bm)
                     bend = bstart + timedelta(minutes=bduration)
                     booked_slots.append((bstart, bend))
-
-        # Find free slots
         available = []
         current = start
         while current + timedelta(minutes=duration) <= end:
             slot_end = current + timedelta(minutes=duration)
-            # Check if slot overlaps with any booking
             is_free = True
             for bstart, bend in booked_slots:
                 if not (slot_end <= bstart or current >= bend):
@@ -233,20 +218,18 @@ def get_available_slots(master_id: str, service_id: str, date_str: str) -> list:
             if is_free:
                 available.append(current.strftime("%H:%M"))
             current += timedelta(minutes=30)
-
         return available
     except Exception as e:
         log("error", "Slot calculation failed", error=str(e))
         return []
 
 def get_available_dates(master_id: str) -> list:
-    """Returns next 7 available working days for a master."""
     master = MASTERS.get(master_id)
     if not master:
         return []
     available = []
     today = datetime.now().date()
-    check = today + timedelta(days=1)  # Start from tomorrow
+    check = today + timedelta(days=1)
     while len(available) < 7:
         day_name = check.strftime("%a").lower()
         if master.get(day_name, False):
@@ -266,11 +249,56 @@ def write_booking(phone, customer_name, master_id, service_id, date, time):
             master_id, service_id, date, time,
             "Confirmed", "FALSE"
         ])
-        log("info", "Booking written", id=booking_id, master=master_id, date=date, time=time)
+        log("info", "Booking written", id=booking_id)
         return booking_id
     except Exception as e:
         log("error", "Booking write failed", error=str(e))
         return None
+
+# ─── Cancellation ─────────────────────────────────────────────────────────────
+def fetch_active_booking(phone: str) -> dict:
+    """Find the most recent active booking for this phone number."""
+    try:
+        client = get_google_client()
+        db = client.open("RAZALI_DB")
+        sheet = db.worksheet("Bookings")
+        all_bookings = sheet.get_all_records()
+        today = datetime.now().strftime("%Y-%m-%d")
+        for i, b in enumerate(reversed(all_bookings), 1):
+            clean_phone = str(b.get("phone", "")).replace("whatsapp:", "").strip()
+            user_phone = str(phone).replace("whatsapp:", "").strip()
+            if (clean_phone == user_phone and
+                str(b.get("status")) == "Confirmed" and
+                str(b.get("date")) >= today):
+                row_num = len(all_bookings) - i + 2  # actual sheet row
+                return {
+                    "found": True,
+                    "row": row_num,
+                    "booking_id": str(b.get("id")),
+                    "master_id": str(b.get("master_id")),
+                    "service_id": str(b.get("service_id")),
+                    "date": str(b.get("date")),
+                    "time": str(b.get("time")),
+                    "customer_name": str(b.get("customer_name"))
+                }
+        return {"found": False}
+    except Exception as e:
+        log("error", "Fetch booking failed", error=str(e))
+        return {"found": False}
+
+def cancel_booking_in_sheet(row: int) -> bool:
+    """Set booking status to Cancelled."""
+    try:
+        client = get_google_client()
+        db = client.open("RAZALI_DB")
+        sheet = db.worksheet("Bookings")
+        # Status is column 8
+        sheet.update_cell(row, 8, "Cancelled")
+        log("info", "Booking cancelled in sheet", row=row)
+        return True
+    except Exception as e:
+        log("error", "Cancel booking failed", error=str(e))
+        return False
 
 # ─── Telegram ─────────────────────────────────────────────────────────────────
 async def send_telegram_alert(message: str):
@@ -312,6 +340,90 @@ def build_booking_alert(booking_id, customer_name, phone, master_id, service_id,
         f"━━━━━━━━━━━━━━━━━━"
     )
 
+def build_cancellation_alert(booking_id, customer_name, phone, master_id, service_id, date, time):
+    master_name = MASTERS.get(master_id, {}).get("name", master_id)
+    service_name = SERVICES.get(service_id, {}).get("name", service_id)
+    date_fmt = datetime.strptime(date, "%Y-%m-%d").strftime("%d %b %Y")
+    return (
+        f"❌ <b>REZERVASIYA LƏĞV EDİLDİ / BOOKING CANCELLED</b>\n"
+        f"━━━━━━━━━━━━━━━━━━\n"
+        f"🆔 <b>ID:</b> #{booking_id}\n"
+        f"👤 <b>Müştəri:</b> {customer_name}\n"
+        f"📞 <b>Telefon:</b> {phone}\n"
+        f"━━━━━━━━━━━━━━━━━━\n"
+        f"💅 <b>Xidmət:</b> {service_name}\n"
+        f"👩 <b>Master:</b> {master_name}\n"
+        f"📅 <b>Tarix:</b> {date_fmt}\n"
+        f"🕐 <b>Saat:</b> {time}\n"
+        f"━━━━━━━━━━━━━━━━━━"
+    )
+
+# ─── Reminder scheduler ───────────────────────────────────────────────────────
+async def reminder_loop():
+    while True:
+        try:
+            await asyncio.sleep(1800)
+            now = datetime.now()
+            target = now + timedelta(hours=24)
+            target_date = target.strftime("%Y-%m-%d")
+            target_hour = target.strftime("%H")
+            client = get_google_client()
+            db = client.open("RAZALI_DB")
+            sheet = db.worksheet("Bookings")
+            all_bookings = sheet.get_all_records()
+            for i, b in enumerate(all_bookings, 2):
+                if (str(b.get("date")) == target_date and
+                    str(b.get("time", ""))[:2] == target_hour and
+                    str(b.get("status")) == "Confirmed" and
+                    str(b.get("reminder_sent")).upper() == "FALSE"):
+                    phone = str(b.get("phone", ""))
+                    master_name = MASTERS.get(str(b.get("master_id")), {}).get("name", "")
+                    service_name = SERVICES.get(str(b.get("service_id")), {}).get("name", "")
+                    appt_time = str(b.get("time"))
+                    appt_date = datetime.strptime(target_date, "%Y-%m-%d").strftime("%d %b %Y")
+                    reminder_msg = (
+                        f"⏰ *Xatırlatma / Reminder*\n\n"
+                        f"Sabah *{appt_date}* tarixində saat *{appt_time}*-də\n"
+                        f"*{master_name}* ilə *{service_name}* görüşünüz var.\n\n"
+                        f"Tomorrow at *{appt_time}* you have an appointment\n"
+                        f"with *{master_name}* for *{service_name}*.\n\n"
+                        f"📍 RAZALI Nails / Hair / Make Up\n\n"
+                        f"❌ Ləğv etmək / To cancel: *İPTAL* / *CANCEL* / *ОТМЕНА*"
+                    )
+                    await send_whatsapp_reminder(phone, reminder_msg)
+                    sheet.update_cell(i, 9, "TRUE")
+                    log("info", "Reminder sent", phone=phone[-6:])
+        except Exception as e:
+            log("error", "Reminder loop error", error=str(e))
+
+async def send_whatsapp_reminder(phone: str, message: str):
+    account_sid = os.environ.get("TWILIO_ACCOUNT_SID")
+    auth_token = os.environ.get("TWILIO_AUTH_TOKEN")
+    from_number = os.environ.get("TWILIO_WHATSAPP_NUMBER", "whatsapp:+14155238886")
+    if not account_sid or not auth_token:
+        return
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(
+                f"https://api.twilio.com/2010-04-01/Accounts/{account_sid}/Messages.json",
+                data={"From": from_number, "To": phone, "Body": message},
+                auth=(account_sid, auth_token),
+                timeout=10.0
+            )
+            if resp.status_code == 201:
+                log("info", "Reminder sent", phone=phone[-6:])
+            else:
+                log("error", "Reminder failed", status=resp.status_code)
+    except Exception as e:
+        log("error", "Reminder exception", error=str(e))
+
+# ─── Startup ──────────────────────────────────────────────────────────────────
+@app.on_event("startup")
+async def startup_event():
+    log("info", "RAZALI bot starting up...")
+    load_data()
+    asyncio.create_task(reminder_loop())
+
 # ─── Lexicon ──────────────────────────────────────────────────────────────────
 LEXICON = {
     "az": {
@@ -334,20 +446,35 @@ LEXICON = {
             "⏰ Görüşdən 24 saat əvvəl xatırlatma göndəriləcək.\n"
             "❌ Ləğv etmək üçün *İPTAL* yazın."
         ),
-        "cancelled": "❌ Rezervasiya ləğv edildi. Yenidən başlamaq üçün istənilən mesaj göndərin.",
+        "cancel_found": (
+            "📋 *Aktiv rezervasiyanız:*\n\n"
+            "🆔 #{booking_id}\n"
+            "💅 {service}\n"
+            "👩 {master}\n"
+            "📅 {date}\n"
+            "🕐 {time}\n\n"
+            "Ləğv etmək istədiyinizə əminsinizmi?\n"
+            "✅ *BƏLİ* — ləğv et\n"
+            "❌ *XEYİR* — saxla"
+        ),
+        "cancel_confirmed": "✅ Rezervasiyanız ləğv edildi. Yeni rezervasiya üçün istənilən mesaj göndərin.",
+        "cancel_aborted": "👍 Rezervasiyanız saxlanıldı.",
         "no_bookings": "📋 Aktiv rezervasiyanız yoxdur.",
+        "cancelled": "❌ Əməliyyat ləğv edildi.",
         "fallback": "Zəhmət olmasa aşağıdakı seçimlərdən birini yazın.",
         "back": "GERİ",
         "cancel": "İPTAL",
+        "yes": "BƏLİ",
+        "no": "XEYİR",
     },
     "en": {
         "language_picker": "👋 Welcome to *RAZALI* salon!\n\nSelect language:\n🇦🇿 *AZ*\n🇬🇧 *EN*\n🇷🇺 *RU*",
-        "welcome": "✨ *RAZALI Nails / Hair / Make Up*\n\nWhat would you like?\n\n{categories}\n\n*CANCEL* — cancel booking",
+        "welcome": "✨ *RAZALI Nails / Hair / Make Up*\n\nWhat would you like?\n\n{categories}\n\n*CANCEL* — cancel your booking",
         "choose_service": "💅 *{category}* services:\n\n{services}\n\n*BACK* — return to categories",
         "choose_master": "👩 Choose a master:\n\n{masters}\n\n*BACK* — return to services",
         "choose_date": "📅 Available days for *{master_name}*:\n\n{dates}\n\n*BACK* — return to masters",
         "choose_time": "🕐 Available slots for *{date}*:\n\n{slots}\n\n*BACK* — return to dates",
-        "no_slots": "😔 No available slots on this date. Choose another date.\n\n{dates}",
+        "no_slots": "😔 No available slots on this date. Choose another.\n\n{dates}",
         "ask_name": "✍️ Please enter your name to confirm the booking:",
         "confirm": (
             "✅ *Booking confirmed!*\n\n"
@@ -357,14 +484,29 @@ LEXICON = {
             "📅 *Date:* {date}\n"
             "🕐 *Time:* {time}\n"
             "💰 *Price:* {price} AZN\n\n"
-            "⏰ You will receive a reminder 24 hours before your appointment.\n"
+            "⏰ You will receive a reminder 24 hours before.\n"
             "❌ To cancel type *CANCEL*."
         ),
-        "cancelled": "❌ Booking cancelled. Send any message to start again.",
+        "cancel_found": (
+            "📋 *Your active booking:*\n\n"
+            "🆔 #{booking_id}\n"
+            "💅 {service}\n"
+            "👩 {master}\n"
+            "📅 {date}\n"
+            "🕐 {time}\n\n"
+            "Are you sure you want to cancel?\n"
+            "✅ *YES* — cancel it\n"
+            "❌ *NO* — keep it"
+        ),
+        "cancel_confirmed": "✅ Your booking has been cancelled. Send any message to make a new booking.",
+        "cancel_aborted": "👍 Your booking has been kept.",
         "no_bookings": "📋 You have no active bookings.",
+        "cancelled": "❌ Action cancelled.",
         "fallback": "Please choose one of the options below.",
         "back": "BACK",
         "cancel": "CANCEL",
+        "yes": "YES",
+        "no": "NO",
     },
     "ru": {
         "language_picker": "👋 Добро пожаловать в салон *RAZALI*!\n\nВыберите язык:\n🇦🇿 *AZ*\n🇬🇧 *EN*\n🇷🇺 *RU*",
@@ -373,7 +515,7 @@ LEXICON = {
         "choose_master": "👩 Выберите мастера:\n\n{masters}\n\n*НАЗАД* — вернуться к услугам",
         "choose_date": "📅 Доступные дни для *{master_name}*:\n\n{dates}\n\n*НАЗАД* — вернуться к мастерам",
         "choose_time": "🕐 Свободные слоты на *{date}*:\n\n{slots}\n\n*НАЗАД* — вернуться к датам",
-        "no_slots": "😔 На эту дату нет свободных слотов. Выберите другую дату.\n\n{dates}",
+        "no_slots": "😔 На эту дату нет свободных слотов. Выберите другую.\n\n{dates}",
         "ask_name": "✍️ Введите ваше имя для подтверждения записи:",
         "confirm": (
             "✅ *Запись подтверждена!*\n\n"
@@ -383,14 +525,29 @@ LEXICON = {
             "📅 *Дата:* {date}\n"
             "🕐 *Время:* {time}\n"
             "💰 *Цена:* {price} AZN\n\n"
-            "⏰ Напоминание придёт за 24 часа до записи.\n"
+            "⏰ Напоминание придёт за 24 часа.\n"
             "❌ Для отмены напишите *ОТМЕНА*."
         ),
-        "cancelled": "❌ Запись отменена. Отправьте любое сообщение, чтобы начать снова.",
+        "cancel_found": (
+            "📋 *Ваша активная запись:*\n\n"
+            "🆔 #{booking_id}\n"
+            "💅 {service}\n"
+            "👩 {master}\n"
+            "📅 {date}\n"
+            "🕐 {time}\n\n"
+            "Вы уверены, что хотите отменить?\n"
+            "✅ *ДА* — отменить\n"
+            "❌ *НЕТ* — оставить"
+        ),
+        "cancel_confirmed": "✅ Ваша запись отменена. Отправьте любое сообщение для новой записи.",
+        "cancel_aborted": "👍 Ваша запись сохранена.",
         "no_bookings": "📋 У вас нет активных записей.",
+        "cancelled": "❌ Действие отменено.",
         "fallback": "Пожалуйста, выберите один из вариантов ниже.",
         "back": "НАЗАД",
         "cancel": "ОТМЕНА",
+        "yes": "ДА",
+        "no": "НЕТ",
     }
 }
 
@@ -420,8 +577,7 @@ def fmt_masters(service_id: str, lang: str) -> str:
     i = 1
     for mid, m in MASTERS.items():
         duration = DURATIONS.get((mid, service_id), 60)
-        service = SERVICES.get(service_id, {})
-        price = service.get("price", 0)
+        price = SERVICES.get(service_id, {}).get("price", 0)
         emoji = NUMBER_EMOJIS.get(str(i), f"{i}.")
         lines.append(f"{emoji} {m['name']} — {duration} dəq / {price:.0f} AZN")
         i += 1
@@ -445,7 +601,6 @@ def fmt_slots(slots: list) -> str:
     return "\n".join(lines)
 
 def get_service_by_category_index(category: str, index: int):
-    """Get service id by its position in a category."""
     i = 1
     for sid, s in SERVICES.items():
         if s["category"] == category:
@@ -455,93 +610,10 @@ def get_service_by_category_index(category: str, index: int):
     return None
 
 def get_master_by_index(index: int):
-    """Get master id by position."""
     for i, mid in enumerate(MASTERS.keys(), 1):
         if i == index:
             return mid
     return None
-
-# ─── 24hr Reminder Scheduler ──────────────────────────────────────────────────
-async def reminder_loop():
-    """Runs every 30 minutes, sends reminders for appointments in ~24hrs."""
-    while True:
-        try:
-            await asyncio.sleep(1800)  # every 30 minutes
-            now = datetime.now()
-            target = now + timedelta(hours=24)
-            target_date = target.strftime("%Y-%m-%d")
-            target_hour = target.strftime("%H")
-
-            client = get_google_client()
-            db = client.open("RAZALI_DB")
-            sheet = db.worksheet("Bookings")
-            all_bookings = sheet.get_all_records()
-
-            for i, b in enumerate(all_bookings, 2):  # row 2 onwards
-                if (str(b.get("date")) == target_date and
-                    str(b.get("time", ""))[:2] == target_hour and
-                    str(b.get("status")) == "Confirmed" and
-                    str(b.get("reminder_sent")).upper() == "FALSE"):
-
-                    phone = str(b.get("phone", ""))
-                    master_name = MASTERS.get(str(b.get("master_id")), {}).get("name", "")
-                    service_name = SERVICES.get(str(b.get("service_id")), {}).get("name", "")
-                    appt_time = str(b.get("time"))
-                    appt_date = datetime.strptime(target_date, "%Y-%m-%d").strftime("%d %b %Y")
-
-                    reminder_msg = (
-                        f"⏰ *Xatırlatma / Reminder*\n\n"
-                        f"Sabah *{appt_date}* tarixində saat *{appt_time}*-də\n"
-                        f"*{master_name}* ilə *{service_name}* görüşünüz var.\n\n"
-                        f"Tomorrow at *{appt_time}* you have an appointment\n"
-                        f"with *{master_name}* for *{service_name}*.\n\n"
-                        f"📍 RAZALI Nails / Hair / Make Up"
-                    )
-
-                    # Send WhatsApp reminder via Twilio
-                    await send_whatsapp_reminder(phone, reminder_msg)
-
-                    # Mark reminder as sent
-                    sheet.update_cell(i, 9, "TRUE")
-                    log("info", "Reminder sent", phone=phone[-6:], date=target_date, time=appt_time)
-
-        except Exception as e:
-            log("error", "Reminder loop error", error=str(e))
-
-async def send_whatsapp_reminder(phone: str, message: str):
-    """Send WhatsApp message via Twilio REST API."""
-    account_sid = os.environ.get("TWILIO_ACCOUNT_SID")
-    auth_token = os.environ.get("TWILIO_AUTH_TOKEN")
-    from_number = os.environ.get("TWILIO_WHATSAPP_NUMBER", "whatsapp:+14155238886")
-    if not account_sid or not auth_token:
-        log("warning", "Twilio credentials missing for reminder")
-        return
-    try:
-        async with httpx.AsyncClient() as client:
-            resp = await client.post(
-                f"https://api.twilio.com/2010-04-01/Accounts/{account_sid}/Messages.json",
-                data={
-                    "From": from_number,
-                    "To": phone,
-                    "Body": message
-                },
-                auth=(account_sid, auth_token),
-                timeout=10.0
-            )
-            if resp.status_code == 201:
-                log("info", "WhatsApp reminder sent", phone=phone[-6:])
-            else:
-                log("error", "WhatsApp reminder failed", status=resp.status_code)
-    except Exception as e:
-        log("error", "WhatsApp reminder exception", error=str(e))
-
-# ─── Startup ──────────────────────────────────────────────────────────────────
-@app.on_event("startup")
-async def startup_event():
-    log("info", "RAZALI bot starting up...")
-    load_data()
-    asyncio.create_task(reminder_loop())
-    log("info", "Reminder scheduler started")
 
 # ─── Main webhook ─────────────────────────────────────────────────────────────
 @app.post("/whatsapp")
@@ -558,7 +630,7 @@ async def incoming_whatsapp(request: Request):
         response.message("⚠️ Too many messages. Please wait a moment.")
         return Response(content=str(response), media_type="application/xml")
 
-    log("info", "Message received", phone=From[-6:], state=session["state"], text=user_text[:20])
+    log("info", "Message", phone=From[-6:], state=session["state"], text=user_text[:20])
 
     # ── LANGUAGE SELECTION ────────────────────────────────────────────────────
     if session["lang"] is None or session["state"] == "WAITING_FOR_LANG":
@@ -566,8 +638,7 @@ async def incoming_whatsapp(request: Request):
             session["lang"] = user_lower
             session["state"] = "CHOOSING_CATEGORY"
             lang = user_lower
-            msg = LEXICON[lang]["welcome"].format(categories=fmt_categories(lang))
-            response.message(msg)
+            response.message(LEXICON[lang]["welcome"].format(categories=fmt_categories(lang)))
             save_session(From, session)
             return Response(content=str(response), media_type="application/xml")
         else:
@@ -579,13 +650,79 @@ async def incoming_whatsapp(request: Request):
     lang = session["lang"]
     back_word = LEXICON[lang]["back"].lower()
     cancel_word = LEXICON[lang]["cancel"].lower()
+    yes_word = LEXICON[lang]["yes"].lower()
+    no_word = LEXICON[lang]["no"].lower()
 
-    # ── GLOBAL CANCEL ─────────────────────────────────────────────────────────
-    if user_lower == cancel_word:
-        session = clear_session(From)
-        session["lang"] = lang
-        session["state"] = "CHOOSING_CATEGORY"
-        response.message(LEXICON[lang]["cancelled"])
+    # ── CANCELLATION FLOW ─────────────────────────────────────────────────────
+    if user_lower == cancel_word and session["state"] not in ("CONFIRM_CANCEL",):
+        # Find active booking
+        booking = await asyncio.get_event_loop().run_in_executor(
+            executor, fetch_active_booking, From
+        )
+        if not booking["found"]:
+            response.message(LEXICON[lang]["no_bookings"])
+            save_session(From, session)
+            return Response(content=str(response), media_type="application/xml")
+
+        # Store booking in session and ask for confirmation
+        session["cancel_booking"] = booking
+        session["state"] = "CONFIRM_CANCEL"
+        master_name = MASTERS.get(booking["master_id"], {}).get("name", "")
+        service_name = SERVICES.get(booking["service_id"], {}).get("name", "")
+        date_fmt = datetime.strptime(booking["date"], "%Y-%m-%d").strftime("%d %b %Y")
+
+        msg = LEXICON[lang]["cancel_found"].format(
+            booking_id=booking["booking_id"],
+            service=service_name,
+            master=master_name,
+            date=date_fmt,
+            time=booking["time"]
+        )
+        response.message(msg)
+        save_session(From, session)
+        return Response(content=str(response), media_type="application/xml")
+
+    # ── CONFIRM CANCELLATION ──────────────────────────────────────────────────
+    if session["state"] == "CONFIRM_CANCEL":
+        if user_lower == yes_word:
+            booking = session.get("cancel_booking", {})
+            success = await asyncio.get_event_loop().run_in_executor(
+                executor, cancel_booking_in_sheet, booking["row"]
+            )
+            if success:
+                asyncio.create_task(send_telegram_alert(
+                    build_cancellation_alert(
+                        booking["booking_id"],
+                        booking["customer_name"],
+                        From,
+                        booking["master_id"],
+                        booking["service_id"],
+                        booking["date"],
+                        booking["time"]
+                    )
+                ))
+                response.message(LEXICON[lang]["cancel_confirmed"])
+                log("info", "Booking cancelled", id=booking["booking_id"], phone=From[-6:])
+            else:
+                response.message("⚠️ Xəta baş verdi. Zəhmət olmasa yenidən cəhd edin.")
+            session = clear_booking_session(From, lang)
+        elif user_lower == no_word:
+            response.message(LEXICON[lang]["cancel_aborted"])
+            session = clear_booking_session(From, lang)
+        else:
+            # Re-ask
+            booking = session.get("cancel_booking", {})
+            master_name = MASTERS.get(booking.get("master_id",""), {}).get("name", "")
+            service_name = SERVICES.get(booking.get("service_id",""), {}).get("name", "")
+            date_fmt = datetime.strptime(booking["date"], "%Y-%m-%d").strftime("%d %b %Y")
+            msg = LEXICON[lang]["cancel_found"].format(
+                booking_id=booking["booking_id"],
+                service=service_name,
+                master=master_name,
+                date=date_fmt,
+                time=booking["time"]
+            )
+            response.message(msg)
         save_session(From, session)
         return Response(content=str(response), media_type="application/xml")
 
@@ -597,17 +734,14 @@ async def incoming_whatsapp(request: Request):
                 category = CATEGORIES[idx - 1]
                 session["category"] = category
                 session["state"] = "CHOOSING_SERVICE"
-                msg = LEXICON[lang]["choose_service"].format(
-                    category=category,
-                    services=fmt_services(category, lang)
-                )
-                response.message(msg)
+                response.message(LEXICON[lang]["choose_service"].format(
+                    category=category, services=fmt_services(category, lang)
+                ))
                 save_session(From, session)
                 return Response(content=str(response), media_type="application/xml")
         except ValueError:
             pass
-        msg = LEXICON[lang]["welcome"].format(categories=fmt_categories(lang))
-        response.message(msg)
+        response.message(LEXICON[lang]["welcome"].format(categories=fmt_categories(lang)))
         save_session(From, session)
         return Response(content=str(response), media_type="application/xml")
 
@@ -615,8 +749,7 @@ async def incoming_whatsapp(request: Request):
     if session["state"] == "CHOOSING_SERVICE":
         if user_lower == back_word:
             session["state"] = "CHOOSING_CATEGORY"
-            msg = LEXICON[lang]["welcome"].format(categories=fmt_categories(lang))
-            response.message(msg)
+            response.message(LEXICON[lang]["welcome"].format(categories=fmt_categories(lang)))
             save_session(From, session)
             return Response(content=str(response), media_type="application/xml")
         try:
@@ -625,19 +758,16 @@ async def incoming_whatsapp(request: Request):
             if service_id:
                 session["service_id"] = service_id
                 session["state"] = "CHOOSING_MASTER"
-                msg = LEXICON[lang]["choose_master"].format(
+                response.message(LEXICON[lang]["choose_master"].format(
                     masters=fmt_masters(service_id, lang)
-                )
-                response.message(msg)
+                ))
                 save_session(From, session)
                 return Response(content=str(response), media_type="application/xml")
         except ValueError:
             pass
-        msg = LEXICON[lang]["choose_service"].format(
-            category=session["category"],
-            services=fmt_services(session["category"], lang)
-        )
-        response.message(msg)
+        response.message(LEXICON[lang]["choose_service"].format(
+            category=session["category"], services=fmt_services(session["category"], lang)
+        ))
         save_session(From, session)
         return Response(content=str(response), media_type="application/xml")
 
@@ -645,11 +775,9 @@ async def incoming_whatsapp(request: Request):
     if session["state"] == "CHOOSING_MASTER":
         if user_lower == back_word:
             session["state"] = "CHOOSING_SERVICE"
-            msg = LEXICON[lang]["choose_service"].format(
-                category=session["category"],
-                services=fmt_services(session["category"], lang)
-            )
-            response.message(msg)
+            response.message(LEXICON[lang]["choose_service"].format(
+                category=session["category"], services=fmt_services(session["category"], lang)
+            ))
             save_session(From, session)
             return Response(content=str(response), media_type="application/xml")
         try:
@@ -661,19 +789,16 @@ async def incoming_whatsapp(request: Request):
                 dates = get_available_dates(master_id)
                 session["available_dates"] = dates
                 master_name = MASTERS[master_id]["name"]
-                msg = LEXICON[lang]["choose_date"].format(
-                    master_name=master_name,
-                    dates=fmt_dates(dates)
-                )
-                response.message(msg)
+                response.message(LEXICON[lang]["choose_date"].format(
+                    master_name=master_name, dates=fmt_dates(dates)
+                ))
                 save_session(From, session)
                 return Response(content=str(response), media_type="application/xml")
         except ValueError:
             pass
-        msg = LEXICON[lang]["choose_master"].format(
+        response.message(LEXICON[lang]["choose_master"].format(
             masters=fmt_masters(session["service_id"], lang)
-        )
-        response.message(msg)
+        ))
         save_session(From, session)
         return Response(content=str(response), media_type="application/xml")
 
@@ -681,10 +806,9 @@ async def incoming_whatsapp(request: Request):
     if session["state"] == "CHOOSING_DATE":
         if user_lower == back_word:
             session["state"] = "CHOOSING_MASTER"
-            msg = LEXICON[lang]["choose_master"].format(
+            response.message(LEXICON[lang]["choose_master"].format(
                 masters=fmt_masters(session["service_id"], lang)
-            )
-            response.message(msg)
+            ))
             save_session(From, session)
             return Response(content=str(response), media_type="application/xml")
         try:
@@ -699,30 +823,25 @@ async def incoming_whatsapp(request: Request):
                 if not slots:
                     dates = get_available_dates(session["master_id"])
                     session["available_dates"] = dates
-                    msg = LEXICON[lang]["no_slots"].format(dates=fmt_dates(dates))
-                    response.message(msg)
+                    response.message(LEXICON[lang]["no_slots"].format(dates=fmt_dates(dates)))
                     save_session(From, session)
                     return Response(content=str(response), media_type="application/xml")
                 session["date"] = chosen_date
                 session["available_slots"] = slots
                 session["state"] = "CHOOSING_TIME"
                 date_fmt = datetime.strptime(chosen_date, "%Y-%m-%d").strftime("%d %b %Y")
-                msg = LEXICON[lang]["choose_time"].format(
-                    date=date_fmt,
-                    slots=fmt_slots(slots)
-                )
-                response.message(msg)
+                response.message(LEXICON[lang]["choose_time"].format(
+                    date=date_fmt, slots=fmt_slots(slots)
+                ))
                 save_session(From, session)
                 return Response(content=str(response), media_type="application/xml")
         except ValueError:
             pass
         dates = session.get("available_dates", [])
         master_name = MASTERS.get(session["master_id"], {}).get("name", "")
-        msg = LEXICON[lang]["choose_date"].format(
-            master_name=master_name,
-            dates=fmt_dates(dates)
-        )
-        response.message(msg)
+        response.message(LEXICON[lang]["choose_date"].format(
+            master_name=master_name, dates=fmt_dates(dates)
+        ))
         save_session(From, session)
         return Response(content=str(response), media_type="application/xml")
 
@@ -732,11 +851,9 @@ async def incoming_whatsapp(request: Request):
             session["state"] = "CHOOSING_DATE"
             dates = session.get("available_dates", [])
             master_name = MASTERS.get(session["master_id"], {}).get("name", "")
-            msg = LEXICON[lang]["choose_date"].format(
-                master_name=master_name,
-                dates=fmt_dates(dates)
-            )
-            response.message(msg)
+            response.message(LEXICON[lang]["choose_date"].format(
+                master_name=master_name, dates=fmt_dates(dates)
+            ))
             save_session(From, session)
             return Response(content=str(response), media_type="application/xml")
         try:
@@ -752,11 +869,9 @@ async def incoming_whatsapp(request: Request):
             pass
         slots = session.get("available_slots", [])
         date_fmt = datetime.strptime(session["date"], "%Y-%m-%d").strftime("%d %b %Y")
-        msg = LEXICON[lang]["choose_time"].format(
-            date=date_fmt,
-            slots=fmt_slots(slots)
-        )
-        response.message(msg)
+        response.message(LEXICON[lang]["choose_time"].format(
+            date=date_fmt, slots=fmt_slots(slots)
+        ))
         save_session(From, session)
         return Response(content=str(response), media_type="application/xml")
 
@@ -767,42 +882,33 @@ async def incoming_whatsapp(request: Request):
         service_id = session["service_id"]
         date = session["date"]
         time = session["time"]
-
         booking_id = await asyncio.get_event_loop().run_in_executor(
             executor, write_booking,
             From, customer_name, master_id, service_id, date, time
         )
-
         if booking_id:
             master_name = MASTERS.get(master_id, {}).get("name", "")
             service = SERVICES.get(service_id, {})
             date_fmt = datetime.strptime(date, "%Y-%m-%d").strftime("%d %b %Y")
-
             asyncio.create_task(send_telegram_alert(
                 build_booking_alert(booking_id, customer_name, From, master_id, service_id, date, time)
             ))
-
-            msg = LEXICON[lang]["confirm"].format(
+            response.message(LEXICON[lang]["confirm"].format(
                 booking_id=booking_id,
                 service=service.get("name", ""),
                 master=master_name,
                 date=date_fmt,
                 time=time,
                 price=int(service.get("price", 0))
-            )
-            response.message(msg)
-            session = clear_session(From)
-            session["lang"] = lang
-            session["state"] = "CHOOSING_CATEGORY"
+            ))
+            session = clear_booking_session(From, lang)
         else:
             response.message("⚠️ Xəta baş verdi. Zəhmət olmasa yenidən cəhd edin.")
-
         save_session(From, session)
         return Response(content=str(response), media_type="application/xml")
 
     # ── FALLBACK ──────────────────────────────────────────────────────────────
     session["state"] = "CHOOSING_CATEGORY"
-    msg = LEXICON[lang]["welcome"].format(categories=fmt_categories(lang))
-    response.message(msg)
+    response.message(LEXICON[lang]["welcome"].format(categories=fmt_categories(lang)))
     save_session(From, session)
     return Response(content=str(response), media_type="application/xml")

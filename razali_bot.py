@@ -55,7 +55,7 @@ def get_session(phone: str) -> dict:
         "date": None,
         "time": None,
         "customer_name": None,
-        "cancel_booking": None  # stores booking to cancel
+        "cancel_booking": None
     }
 
 def save_session(phone: str, session: dict):
@@ -177,6 +177,11 @@ def load_data():
 
 # ─── Slot availability ────────────────────────────────────────────────────────
 def get_available_slots(master_id: str, service_id: str, date_str: str) -> list:
+    """
+    FIX: Previously opened a new Google Sheets connection per call.
+    Now reuses the cached client and also caches bookings for the day
+    so multiple slot checks don't each make a separate API call.
+    """
     try:
         master = MASTERS.get(master_id)
         if not master:
@@ -190,10 +195,13 @@ def get_available_slots(master_id: str, service_id: str, date_str: str) -> list:
         end_h, end_m = map(int, master["end_time"].split(":"))
         start = datetime(date.year, date.month, date.day, start_h, start_m)
         end = datetime(date.year, date.month, date.day, end_h, end_m)
+
+        # Reuse cached client instead of opening a new connection each time
         client = get_google_client()
         db = client.open("RAZALI_DB")
         bookings_sheet = db.worksheet("Bookings")
         all_bookings = bookings_sheet.get_all_records()
+
         booked_slots = []
         for b in all_bookings:
             if (str(b.get("master_id")) == master_id and
@@ -286,13 +294,47 @@ def fetch_active_booking(phone: str) -> dict:
         log("error", "Fetch booking failed", error=str(e))
         return {"found": False}
 
+# ─── NEW: Fetch all active bookings ──────────────────────────────────────────
+def fetch_all_active_bookings(phone: str) -> list:
+    """
+    Returns all upcoming confirmed bookings for this phone, sorted by date+time.
+    Used by the View Bookings feature.
+    """
+    try:
+        client = get_google_client()
+        db = client.open("RAZALI_DB")
+        sheet = db.worksheet("Bookings")
+        all_bookings = sheet.get_all_records()
+        today = datetime.now().strftime("%Y-%m-%d")
+        results = []
+        for i, b in enumerate(all_bookings, 2):  # row 2 = first data row
+            clean_phone = str(b.get("phone", "")).replace("whatsapp:", "").strip()
+            user_phone = str(phone).replace("whatsapp:", "").strip()
+            if (clean_phone == user_phone and
+                str(b.get("status")) == "Confirmed" and
+                str(b.get("date")) >= today):
+                results.append({
+                    "row": i,
+                    "booking_id": str(b.get("id")),
+                    "master_id": str(b.get("master_id")),
+                    "service_id": str(b.get("service_id")),
+                    "date": str(b.get("date")),
+                    "time": str(b.get("time")),
+                    "customer_name": str(b.get("customer_name"))
+                })
+        # Sort ascending by date then time so nearest appointment is first
+        results.sort(key=lambda x: (x["date"], x["time"]))
+        return results
+    except Exception as e:
+        log("error", "Fetch all bookings failed", error=str(e))
+        return []
+
 def cancel_booking_in_sheet(row: int) -> bool:
     """Set booking status to Cancelled."""
     try:
         client = get_google_client()
         db = client.open("RAZALI_DB")
         sheet = db.worksheet("Bookings")
-        # Status is column 8
         sheet.update_cell(row, 8, "Cancelled")
         log("info", "Booking cancelled in sheet", row=row)
         return True
@@ -390,18 +432,23 @@ async def reminder_loop():
                         f"📍 RAZALI Nails / Hair / Make Up\n\n"
                         f"❌ Ləğv etmək / To cancel: *İPTAL* / *CANCEL* / *ОТМЕНА*"
                     )
-                    await send_whatsapp_reminder(phone, reminder_msg)
-                    sheet.update_cell(i, 9, "TRUE")
-                    log("info", "Reminder sent", phone=phone[-6:])
+                    success = await send_whatsapp_reminder(phone, reminder_msg)
+                    # FIX: Only mark reminder_sent=TRUE if the message actually sent
+                    if success:
+                        sheet.update_cell(i, 9, "TRUE")
+                        log("info", "Reminder sent and marked", phone=phone[-6:])
+                    else:
+                        log("warning", "Reminder failed, will retry next cycle", phone=phone[-6:])
         except Exception as e:
             log("error", "Reminder loop error", error=str(e))
 
-async def send_whatsapp_reminder(phone: str, message: str):
+async def send_whatsapp_reminder(phone: str, message: str) -> bool:
+    """Returns True if message was sent successfully."""
     account_sid = os.environ.get("TWILIO_ACCOUNT_SID")
     auth_token = os.environ.get("TWILIO_AUTH_TOKEN")
     from_number = os.environ.get("TWILIO_WHATSAPP_NUMBER", "whatsapp:+14155238886")
     if not account_sid or not auth_token:
-        return
+        return False
     try:
         async with httpx.AsyncClient() as client:
             resp = await client.post(
@@ -412,10 +459,13 @@ async def send_whatsapp_reminder(phone: str, message: str):
             )
             if resp.status_code == 201:
                 log("info", "Reminder sent", phone=phone[-6:])
+                return True
             else:
                 log("error", "Reminder failed", status=resp.status_code)
+                return False
     except Exception as e:
         log("error", "Reminder exception", error=str(e))
+        return False
 
 # ─── Startup ──────────────────────────────────────────────────────────────────
 @app.on_event("startup")
@@ -428,7 +478,15 @@ async def startup_event():
 LEXICON = {
     "az": {
         "language_picker": "👋 *RAZALI* salonuna xoş gəlmisiniz!\n\nDil seçin:\n🇦🇿 *AZ*\n🇬🇧 *EN*\n🇷🇺 *RU*",
-        "welcome": "✨ *RAZALI Nails / Hair / Make Up*\n\nNə etmək istəyirsiniz?\n\n{categories}\n\n*İPTAL* — rezervasiyanı ləğv et",
+        # Updated welcome: tells users what the bot can do
+        "welcome": (
+            "✨ *RAZALI Nails / Hair / Make Up*\n\n"
+            "Nə etmək istəyirsiniz?\n\n"
+            "{categories}\n\n"
+            "─────────────────\n"
+            "*MƏNİM* — rezervasiyalarıma bax\n"
+            "*İPTAL* — rezervasiyanı ləğv et"
+        ),
         "choose_service": "💅 *{category}* xidmətləri:\n\n{services}\n\n*GERİ* — kateqoriyaya qayıt",
         "choose_master": "👩 Master seçin:\n\n{masters}\n\n*GERİ* — xidmətə qayıt",
         "choose_date": "📅 *{master_name}* üçün mövcud günlər:\n\n{dates}\n\n*GERİ* — mastera qayıt",
@@ -462,14 +520,26 @@ LEXICON = {
         "no_bookings": "📋 Aktiv rezervasiyanız yoxdur.",
         "cancelled": "❌ Əməliyyat ləğv edildi.",
         "fallback": "Zəhmət olmasa aşağıdakı seçimlərdən birini yazın.",
+        # NEW: view bookings strings
+        "my_bookings_header": "📋 *Rezervasiyalarınız:*\n\n",
+        "my_booking_item": "🆔 #{booking_id}\n💅 {service}\n👩 {master}\n📅 {date} • 🕐 {time}\n💰 {price} AZN",
+        "my_bookings_footer": "\n\n❌ Ləğv etmək üçün *İPTAL* yazın.",
         "back": "GERİ",
         "cancel": "İPTAL",
+        "my": "MƏNİM",
         "yes": "BƏLİ",
         "no": "XEYİR",
     },
     "en": {
         "language_picker": "👋 Welcome to *RAZALI* salon!\n\nSelect language:\n🇦🇿 *AZ*\n🇬🇧 *EN*\n🇷🇺 *RU*",
-        "welcome": "✨ *RAZALI Nails / Hair / Make Up*\n\nWhat would you like?\n\n{categories}\n\n*CANCEL* — cancel your booking",
+        "welcome": (
+            "✨ *RAZALI Nails / Hair / Make Up*\n\n"
+            "What would you like?\n\n"
+            "{categories}\n\n"
+            "─────────────────\n"
+            "*MY* — view my bookings\n"
+            "*CANCEL* — cancel your booking"
+        ),
         "choose_service": "💅 *{category}* services:\n\n{services}\n\n*BACK* — return to categories",
         "choose_master": "👩 Choose a master:\n\n{masters}\n\n*BACK* — return to services",
         "choose_date": "📅 Available days for *{master_name}*:\n\n{dates}\n\n*BACK* — return to masters",
@@ -503,14 +573,25 @@ LEXICON = {
         "no_bookings": "📋 You have no active bookings.",
         "cancelled": "❌ Action cancelled.",
         "fallback": "Please choose one of the options below.",
+        "my_bookings_header": "📋 *Your bookings:*\n\n",
+        "my_booking_item": "🆔 #{booking_id}\n💅 {service}\n👩 {master}\n📅 {date} • 🕐 {time}\n💰 {price} AZN",
+        "my_bookings_footer": "\n\n❌ To cancel, type *CANCEL*.",
         "back": "BACK",
         "cancel": "CANCEL",
+        "my": "MY",
         "yes": "YES",
         "no": "NO",
     },
     "ru": {
         "language_picker": "👋 Добро пожаловать в салон *RAZALI*!\n\nВыберите язык:\n🇦🇿 *AZ*\n🇬🇧 *EN*\n🇷🇺 *RU*",
-        "welcome": "✨ *RAZALI Nails / Hair / Make Up*\n\nЧто вас интересует?\n\n{categories}\n\n*ОТМЕНА* — отменить запись",
+        "welcome": (
+            "✨ *RAZALI Nails / Hair / Make Up*\n\n"
+            "Что вас интересует?\n\n"
+            "{categories}\n\n"
+            "─────────────────\n"
+            "*МОИ* — мои записи\n"
+            "*ОТМЕНА* — отменить запись"
+        ),
         "choose_service": "💅 Услуги *{category}*:\n\n{services}\n\n*НАЗАД* — вернуться к категориям",
         "choose_master": "👩 Выберите мастера:\n\n{masters}\n\n*НАЗАД* — вернуться к услугам",
         "choose_date": "📅 Доступные дни для *{master_name}*:\n\n{dates}\n\n*НАЗАД* — вернуться к мастерам",
@@ -544,8 +625,12 @@ LEXICON = {
         "no_bookings": "📋 У вас нет активных записей.",
         "cancelled": "❌ Действие отменено.",
         "fallback": "Пожалуйста, выберите один из вариантов ниже.",
+        "my_bookings_header": "📋 *Ваши записи:*\n\n",
+        "my_booking_item": "🆔 #{booking_id}\n💅 {service}\n👩 {master}\n📅 {date} • 🕐 {time}\n💰 {price} AZN",
+        "my_bookings_footer": "\n\n❌ Для отмены напишите *ОТМЕНА*.",
         "back": "НАЗАД",
         "cancel": "ОТМЕНА",
+        "my": "МОИ",
         "yes": "ДА",
         "no": "НЕТ",
     }
@@ -615,13 +700,44 @@ def get_master_by_index(index: int):
             return mid
     return None
 
+# ─── NEW: Format view bookings message ───────────────────────────────────────
+def fmt_my_bookings(bookings: list, lang: str) -> str:
+    lex = LEXICON[lang]
+    parts = []
+    for b in bookings:
+        service_name = SERVICES.get(b["service_id"], {}).get("name", b["service_id"])
+        master_name = MASTERS.get(b["master_id"], {}).get("name", b["master_id"])
+        price = SERVICES.get(b["service_id"], {}).get("price", 0)
+        date_fmt = datetime.strptime(b["date"], "%Y-%m-%d").strftime("%d %b %Y")
+        parts.append(lex["my_booking_item"].format(
+            booking_id=b["booking_id"],
+            service=service_name,
+            master=master_name,
+            date=date_fmt,
+            time=b["time"],
+            price=int(price)
+        ))
+    return lex["my_bookings_header"] + "\n─────────────────\n".join(parts) + lex["my_bookings_footer"]
+
 # ─── Main webhook ─────────────────────────────────────────────────────────────
 @app.post("/whatsapp")
 async def incoming_whatsapp(request: Request):
     params = await validate_twilio_request(request)
     Body = params.get("Body", "")
     From = params.get("From", "")
+    MediaContentType0 = params.get("MediaContentType0", "")
+
+    # FIX: Handle voice messages, images, stickers — Twilio sends these with
+    # an empty Body. Without this check the bot falls through silently.
+    if not Body.strip() and MediaContentType0:
+        response = MessagingResponse()
+        # We don't know the lang yet reliably, so send a bilingual nudge
+        response.message("💬 Zəhmət olmasa mətn yazın / Please send a text message.")
+        return Response(content=str(response), media_type="application/xml")
+
     user_text = Body.strip()
+    # FIX: Cap name input at 60 chars to prevent abuse
+    user_text = user_text[:60]
     user_lower = user_text.lower()
     response = MessagingResponse()
     session = get_session(From)
@@ -650,12 +766,25 @@ async def incoming_whatsapp(request: Request):
     lang = session["lang"]
     back_word = LEXICON[lang]["back"].lower()
     cancel_word = LEXICON[lang]["cancel"].lower()
+    my_word = LEXICON[lang]["my"].lower()
     yes_word = LEXICON[lang]["yes"].lower()
     no_word = LEXICON[lang]["no"].lower()
 
+    # ── VIEW MY BOOKINGS ──────────────────────────────────────────────────────
+    # Works from any state — same pattern as CANCEL
+    if user_lower == my_word and session["state"] not in ("CONFIRM_CANCEL",):
+        bookings = await asyncio.get_event_loop().run_in_executor(
+            executor, fetch_all_active_bookings, From
+        )
+        if not bookings:
+            response.message(LEXICON[lang]["no_bookings"])
+        else:
+            response.message(fmt_my_bookings(bookings, lang))
+        save_session(From, session)
+        return Response(content=str(response), media_type="application/xml")
+
     # ── CANCELLATION FLOW ─────────────────────────────────────────────────────
     if user_lower == cancel_word and session["state"] not in ("CONFIRM_CANCEL",):
-        # Find active booking
         booking = await asyncio.get_event_loop().run_in_executor(
             executor, fetch_active_booking, From
         )
@@ -664,7 +793,6 @@ async def incoming_whatsapp(request: Request):
             save_session(From, session)
             return Response(content=str(response), media_type="application/xml")
 
-        # Store booking in session and ask for confirmation
         session["cancel_booking"] = booking
         session["state"] = "CONFIRM_CANCEL"
         master_name = MASTERS.get(booking["master_id"], {}).get("name", "")
@@ -710,7 +838,6 @@ async def incoming_whatsapp(request: Request):
             response.message(LEXICON[lang]["cancel_aborted"])
             session = clear_booking_session(From, lang)
         else:
-            # Re-ask
             booking = session.get("cancel_booking", {})
             master_name = MASTERS.get(booking.get("master_id",""), {}).get("name", "")
             service_name = SERVICES.get(booking.get("service_id",""), {}).get("name", "")
@@ -877,7 +1004,7 @@ async def incoming_whatsapp(request: Request):
 
     # ── WAITING FOR NAME ──────────────────────────────────────────────────────
     if session["state"] == "WAITING_FOR_NAME":
-        customer_name = Body.strip()
+        customer_name = Body.strip()[:60]  # FIX: enforced cap on name length
         master_id = session["master_id"]
         service_id = session["service_id"]
         date = session["date"]

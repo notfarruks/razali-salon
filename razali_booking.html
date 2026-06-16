@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>RAZALI — Book an Appointment</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --charcoal:#1C1C1A;--cream:#F5F0EA;--cream-dark:#EDE7DE;
+  --gold:#C9A96E;--gold-light:#E8D5B0;--stone:#8B8B88;
+  --white:#FFFFFF;--error:#C0392B;
+  --fd:'Cormorant Garamond',Georgia,serif;
+  --fb:'Inter',system-ui,sans-serif;
+}
+html{scroll-behavior:smooth}
+body{background:var(--cream);color:var(--charcoal);font-family:var(--fb);font-size:15px;line-height:1.5;min-height:100vh;-webkit-font-smoothing:antialiased}
+
+/* HEADER */
+.header{background:var(--charcoal);padding:18px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.logo{font-family:var(--fd);font-size:22px;font-weight:600;letter-spacing:.12em;color:var(--cream);text-transform:uppercase}
+.logo span{font-size:9px;font-family:var(--fb);font-weight:300;letter-spacing:.2em;display:block;color:var(--stone);margin-top:1px}
+.lang-toggle{display:flex;gap:4px}
+.lang-btn{background:none;border:1px solid #444;color:var(--stone);font-family:var(--fb);font-size:11px;font-weight:500;letter-spacing:.1em;padding:5px 10px;cursor:pointer;transition:all .2s}
+.lang-btn.active{background:var(--gold);border-color:var(--gold);color:var(--charcoal)}
+
+/* PROGRESS */
+.progress-bar{background:var(--charcoal);padding:0 24px 14px}
+.progress-track{height:2px;background:#333;position:relative}
+.progress-fill{height:100%;background:var(--gold);transition:width .4s ease;width:0%}
+.progress-steps{display:flex;justify-content:space-between;margin-top:7px}
+.ps{font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:#555;font-weight:500;transition:color .3s}
+.ps.active{color:var(--gold)}.ps.done{color:#666}
+
+/* SECTIONS */
+.section{display:none;animation:fadeIn .3s ease;padding-bottom:90px}
+.section.visible{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.section-header{padding:26px 24px 14px;border-bottom:1px solid var(--cream-dark)}
+.eyebrow{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold);font-weight:500;margin-bottom:5px}
+.section-title{font-family:var(--fd);font-size:28px;font-weight:500;line-height:1.2}
+
+/* CATEGORIES */
+.cat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:18px 24px}
+.cat-card{background:var(--white);border:1px solid var(--cream-dark);padding:22px 14px;cursor:pointer;transition:all .2s;text-align:center;position:relative;overflow:hidden}
+.cat-card::after{content:'';position:absolute;bottom:0;left:0;right:0;height:3px;background:var(--gold);transform:scaleX(0);transition:transform .2s}
+.cat-card:hover::after,.cat-card.sel::after{transform:scaleX(1)}
+.cat-card.sel{border-color:var(--gold);background:#FFFDF9}
+.cat-icon{font-size:26px;margin-bottom:9px;display:block}
+.cat-name{font-family:var(--fd);font-size:16px;font-weight:500}
+.cat-count{font-size:11px;color:var(--stone);margin-top:2px}
+
+/* SERVICES */
+.svc-list{padding:10px 24px 20px}
+.svc-label{font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--stone);font-weight:600;margin-bottom:10px}
+.svc-item{background:var(--white);border:1px solid var(--cream-dark);padding:16px 18px;margin-bottom:8px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;transition:all .2s}
+.svc-item:hover{border-color:var(--gold-light)}.svc-item.sel{border-color:var(--gold);background:#FFFDF9}
+.svc-name{font-weight:500;font-size:14px;margin-bottom:2px}
+.svc-dur{font-size:12px;color:var(--stone)}
+.svc-price{font-family:var(--fd);font-size:18px;font-weight:500;white-space:nowrap;margin:0 12px}
+.radio{width:18px;height:18px;border-radius:50%;border:2px solid var(--cream-dark);flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:border-color .2s}
+.svc-item.sel .radio{border-color:var(--gold)}
+.radio-inner{width:8px;height:8px;border-radius:50%;background:var(--gold);opacity:0;transition:opacity .2s}
+.svc-item.sel .radio-inner{opacity:1}
+
+/* MASTERS */
+.master-list{padding:10px 24px 20px}
+.master-card{background:var(--white);border:1px solid var(--cream-dark);padding:14px;margin-bottom:10px;cursor:pointer;display:flex;align-items:center;gap:14px;transition:all .2s}
+.master-card:hover{border-color:var(--gold-light)}.master-card.sel{border-color:var(--gold);background:#FFFDF9}
+.avatar{width:52px;height:52px;border-radius:50%;background:var(--cream-dark);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-family:var(--fd);font-size:19px;color:var(--stone);border:2px solid var(--cream-dark);transition:border-color .2s}
+.master-card.sel .avatar{border-color:var(--gold)}
+.master-name{font-weight:500;font-size:14px;margin-bottom:2px}
+.master-meta{font-size:12px;color:var(--stone)}
+.master-price{font-family:var(--fd);font-size:17px;font-weight:500}
+
+/* CALENDAR */
+.cal-wrap{padding:10px 24px 20px}
+.week-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.week-label{font-family:var(--fd);font-size:20px;font-weight:500}
+.week-arrow{background:none;border:1px solid var(--cream-dark);width:34px;height:34px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--charcoal);transition:all .2s}
+.week-arrow:hover{border-color:var(--gold);color:var(--gold)}.week-arrow:disabled{opacity:.3;cursor:not-allowed}
+.days-strip{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:20px}
+.day{text-align:center;padding:7px 3px;cursor:pointer;border:1px solid transparent;transition:all .2s}
+.day.avail:hover{border-color:var(--gold-light);background:var(--white)}
+.day.sel{background:var(--charcoal);color:var(--cream)}
+.day.unavail,.day.past{opacity:.28;pointer-events:none}
+.day-name{font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--stone);margin-bottom:4px;font-weight:500}
+.day.sel .day-name{color:var(--gold)}
+.day-num{font-family:var(--fd);font-size:20px;font-weight:500;line-height:1}
+.time-group{margin-bottom:18px}
+.tg-label{font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--stone);font-weight:600;margin-bottom:9px}
+.time-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+.slot{background:var(--white);border:1px solid var(--cream-dark);padding:11px 6px;text-align:center;cursor:pointer;font-size:14px;font-weight:500;transition:all .2s;letter-spacing:.02em}
+.slot:hover{border-color:var(--gold)}.slot.sel{background:var(--charcoal);color:var(--cream);border-color:var(--charcoal)}
+.no-date{text-align:center;padding:30px 0;color:var(--stone);font-size:13px;font-style:italic}
+
+/* CHECKOUT */
+.checkout-wrap{padding:10px 24px 20px}
+.summary{background:var(--charcoal);color:var(--cream);padding:18px 20px;margin-bottom:22px}
+.sum-row{display:flex;justify-content:space-between;align-items:baseline;padding:5px 0;border-bottom:1px solid #333;font-size:13px}
+.sum-row:last-child{border-bottom:none}
+.sum-label{color:var(--stone)}.sum-val{font-weight:500}
+.sum-price{font-family:var(--fd);font-size:22px;font-weight:500;color:var(--gold)}
+.form-field{margin-bottom:15px}
+.form-label{display:block;font-size:11px;letter-spacing:.12em;text-transform:uppercase;font-weight:600;color:var(--stone);margin-bottom:5px}
+.form-input{width:100%;border:1px solid var(--cream-dark);background:var(--white);padding:13px 15px;font-family:var(--fb);font-size:15px;color:var(--charcoal);outline:none;transition:border-color .2s;border-radius:0;-webkit-appearance:none}
+.form-input:focus{border-color:var(--gold)}.form-input.err{border-color:var(--error)}
+.form-hint{font-size:11px;color:var(--stone);margin-top:3px}
+.err-msg{color:var(--error);font-size:12px;margin-top:3px;display:none}.err-msg.show{display:block}
+
+/* BOTTOM */
+.bottom{position:fixed;bottom:0;left:0;right:0;background:var(--white);border-top:1px solid var(--cream-dark);padding:14px 24px;display:flex;gap:10px;z-index:50}
+.btn-back{background:none;border:1px solid var(--cream-dark);color:var(--charcoal);padding:14px 18px;font-family:var(--fb);font-size:13px;font-weight:500;letter-spacing:.05em;cursor:pointer;transition:all .2s;display:none}
+.btn-back.show{display:block}.btn-back:hover{border-color:var(--charcoal)}
+.btn-next{flex:1;background:var(--charcoal);border:none;color:var(--cream);padding:16px;font-family:var(--fb);font-size:13px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;transition:background .2s}
+.btn-next:hover{background:#2e2e2b}.btn-next:disabled{background:var(--cream-dark);color:var(--stone);cursor:not-allowed}
+
+/* CONFIRMATION */
+.done-wrap{padding:32px 24px 100px;text-align:center}
+.done-icon{width:64px;height:64px;border-radius:50%;background:var(--charcoal);display:flex;align-items:center;justify-content:center;margin:0 auto 18px;font-size:28px;color:var(--gold)}
+.done-title{font-family:var(--fd);font-size:32px;font-weight:500;margin-bottom:5px}
+.done-sub{color:var(--stone);font-size:14px;margin-bottom:26px}
+.done-card{background:var(--white);border:1px solid var(--cream-dark);padding:22px;text-align:left;margin-bottom:14px}
+.done-id{font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:var(--gold);font-weight:600;margin-bottom:12px}
+.done-row{display:flex;gap:10px;padding:7px 0;border-bottom:1px solid var(--cream-dark);font-size:14px}
+.done-row:last-child{border-bottom:none}
+.done-rl{color:var(--stone);min-width:70px}.done-rv{font-weight:500}
+
+/* LOADING */
+.loading{position:fixed;inset:0;background:rgba(245,240,234,.9);display:none;align-items:center;justify-content:center;z-index:200}
+.loading.show{display:flex}
+.spinner{width:32px;height:32px;border:2px solid var(--cream-dark);border-top-color:var(--gold);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.mini-spinner{width:20px;height:20px;border:2px solid var(--cream-dark);border-top-color:var(--gold);border-radius:50%;animation:spin .8s linear infinite;margin:24px auto}
+
+/* TOAST */
+.toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%) translateY(12px);background:var(--charcoal);color:var(--cream);padding:11px 18px;font-size:13px;opacity:0;transition:all .3s;pointer-events:none;z-index:300;white-space:nowrap}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ERROR PAGE */
+.error-page{text-align:center;padding:60px 24px;color:var(--stone)}
+</style>
+</head>
+<body>
+
+<div class="loading" id="loading"><div class="spinner"></div></div>
+<div class="toast" id="toast"></div>
+
+<header class="header">
+  <div class="logo">RAZALI<span>Nails / Hair / Make Up</span></div>
+  <div class="lang-toggle">
+    <button class="lang-btn active" onclick="setLang('en')">EN</button>
+    <button class="lang-btn" onclick="setLang('ru')">RU</button>
+  </div>
+</header>
+
+<div class="progress-bar">
+  <div class="progress-track"><div class="progress-fill" id="pFill"></div></div>
+  <div class="progress-steps">
+    <span class="ps" id="ps0"></span>
+    <span class="ps" id="ps1"></span>
+    <span class="ps" id="ps2"></span>
+    <span class="ps" id="ps3"></span>
+  </div>
+</div>
+
+<!-- STEP 0: Service -->
+<div class="section visible" id="s0">
+  <div class="section-header">
+    <div class="eyebrow" id="ey0"></div>
+    <h1 class="section-title" id="st0"></h1>
+  </div>
+  <div class="cat-grid" id="catGrid"></div>
+  <div class="svc-list" id="svcList" style="display:none">
+    <div class="svc-label" id="svcLabel"></div>
+    <div id="svcItems"></div>
+  </div>
+</div>
+
+<!-- STEP 1: Master -->
+<div class="section" id="s1">
+  <div class="section-header">
+    <div class="eyebrow" id="ey1"></div>
+    <h1 class="section-title" id="st1"></h1>
+  </div>
+  <div class="master-list" id="masterList"></div>
+</div>
+
+<!-- STEP 2: Date & Time -->
+<div class="section" id="s2">
+  <div class="section-header">
+    <div class="eyebrow" id="ey2"></div>
+    <h1 class="section-title" id="st2"></h1>
+  </div>
+  <div class="cal-wrap">
+    <div class="week-nav">
+      <button class="week-arrow" id="wPrev" onclick="shiftWeek(-1)">←</button>
+      <span class="week-label" id="wLabel"></span>
+      <button class="week-arrow" id="wNext" onclick="shiftWeek(1)">→</button>
+    </div>
+    <div class="days-strip" id="daysStrip"></div>
+    <div id="timeSection"><div class="no-date" id="noDate"></div></div>
+  </div>
+</div>
+
+<!-- STEP 3: Checkout -->
+<div class="section" id="s3">
+  <div class="section-header">
+    <div class="eyebrow" id="ey3"></div>
+    <h1 class="section-title" id="st3"></h1>
+  </div>
+  <div class="checkout-wrap">
+    <div class="summary" id="summary"></div>
+    <div class="form-field">
+      <label class="form-label" id="lName"></label>
+      <input class="form-input" id="iName" type="text" maxlength="60">
+      <div class="err-msg" id="eName"></div>
+    </div>
+    <div class="form-field">
+      <label class="form-label" id="lPhone"></label>
+      <input class="form-input" id="iPhone" type="tel" maxlength="20">
+      <div class="form-hint" id="hPhone"></div>
+      <div class="err-msg" id="ePhone"></div>
+    </div>
+    <div class="form-field">
+      <label class="form-label" id="lNote"></label>
+      <input class="form-input" id="iNote" type="text" maxlength="200">
+    </div>
+  </div>
+</div>
+
+<!-- DONE -->
+<div class="section" id="sDone">
+  <div class="done-wrap">
+    <div class="done-icon">✓</div>
+    <h2 class="done-title" id="doneTitle"></h2>
+    <p class="done-sub" id="doneSub"></p>
+    <div class="done-card">
+      <div class="done-id" id="doneId"></div>
+      <div id="doneDetails"></div>
+    </div>
+    <p style="font-size:12px;color:var(--stone);line-height:1.7" id="doneNote"></p>
+  </div>
+</div>
+
+<div class="bottom">
+  <button class="btn-back" id="btnBack" onclick="goBack()"></button>
+  <button class="btn-next" id="btnNext" onclick="goNext()" disabled></button>
+</div>
+
+<script>
+// ── i18n ──────────────────────────────────────────────────────────────────────
+const T = {
+  en: {
+    ps:     ['Service','Master','Date & Time','Confirm'],
+    ey:     ['Step 1 of 4','Step 2 of 4','Step 3 of 4','Step 4 of 4'],
+    st:     ['What service?','Choose your master','Pick a date & time','Confirm booking'],
+    catCount: (n) => `${n} services`,
+    svcDur: (n) => `${n} min`,
+    masterMeta: (sp, ex) => [sp, ex].filter(Boolean).join(' · '),
+    noDate: 'Select a date to see available times',
+    morning: 'Morning', afternoon: 'Afternoon', evening: 'Evening',
+    noSlots: 'No available slots for this date.',
+    sumLabels: ['Service','Master','Date','Time','Total'],
+    lName: 'Your name', lPhone: 'Phone number', lNote: 'Note (optional)',
+    phName: 'First and last name', phPhone: '+994 XX XXX XX XX',
+    phNote: 'Allergies, preferences…',
+    hPhone: "You'll receive a WhatsApp confirmation",
+    eName: 'Please enter your name', ePhone: 'Please enter a valid phone number',
+    back: 'Back', next: 'Continue', book: 'Book Appointment',
+    doneTitle: "You're booked!", doneSub: 'A WhatsApp confirmation has been sent.',
+    doneNote: '⏰ You will receive a reminder 24 hours before your appointment.\nTo cancel or reschedule, message our WhatsApp bot.',
+    doneRowLabels: ['Service','Master','Date','Time','Price'],
+    errSlot: 'This slot was just taken. Please choose another time.',
+    errGeneric: 'Something went wrong. Please try again.',
+    months: ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],
+    days: ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'],
+    loading: 'Loading…',
+  },
+  ru: {
+    ps:     ['Услуга','Мастер','Дата и время','Подтверждение'],
+    ey:     ['Шаг 1 из 4','Шаг 2 из 4','Шаг 3 из 4','Шаг 4 из 4'],
+    st:     ['Какая услуга?','Выберите мастера','Дата и время','Подтвердите запись'],
+    catCount: (n) => `${n} услуг`,
+    svcDur: (n) => `${n} мин`,
+    masterMeta: (sp, ex) => [sp, ex].filter(Boolean).join(' · '),
+    noDate: 'Выберите дату, чтобы увидеть доступное время',
+    morning: 'Утро', afternoon: 'День', evening: 'Вечер',
+    noSlots: 'На эту дату нет свободных записей.',
+    sumLabels: ['Услуга','Мастер','Дата','Время','Итого'],
+    lName: 'Ваше имя', lPhone: 'Номер телефона', lNote: 'Примечание (необязательно)',
+    phName: 'Имя и фамилия', phPhone: '+994 XX XXX XX XX',
+    phNote: 'Аллергии, пожелания…',
+    hPhone: 'Подтверждение придёт в WhatsApp',
+    eName: 'Введите ваше имя', ePhone: 'Введите корректный номер',
+    back: 'Назад', next: 'Продолжить', book: 'Записаться',
+    doneTitle: 'Запись подтверждена!', doneSub: 'Подтверждение отправлено в WhatsApp.',
+    doneNote: '⏰ Напоминание придёт за 24 часа.\nДля отмены или переноса напишите боту.',
+    doneRowLabels: ['Услуга','Мастер','Дата','Время','Цена'],
+    errSlot: 'Этот слот только что заняли. Выберите другое время.',
+    errGeneric: 'Ошибка. Попробуйте снова.',
+    months: ['Янв','Фев','Мар','Апр','Май','Июн','Июл','Авг','Сен','Окт','Ноя','Дек'],
+    days: ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'],
+    loading: 'Загрузка…',
+  }
+};
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let lang = 'en';
+let step = 0;
+let weekOffset = 0;
+let weekStart  = null;
+
+let appData     = null;   // from /api/data
+let selectedCat = null;
+let selectedSvc = null;   // {id, name, price, duration}
+let selectedMst = null;   // {id, name, ...}
+let selectedDate= null;
+let selectedTime= null;
+let availDates  = [];     // from /api/dates
+let availSlots  = [];     // from /api/slots
+
+const urlParams     = new URLSearchParams(window.location.search);
+const prefilledPhone= urlParams.get('phone') || '';
+
+// ── Language ──────────────────────────────────────────────────────────────────
+function setLang(l) {
+  lang = l;
+  document.querySelectorAll('.lang-btn').forEach(b =>
+    b.classList.toggle('active', b.textContent === l.toUpperCase())
+  );
+  applyTranslations();
+  if (appData) rerender();
+}
+
+function t(key, ...args) {
+  const v = T[lang][key];
+  return typeof v === 'function' ? v(...args) : v;
+}
+
+function applyTranslations() {
+  const tx = T[lang];
+  tx.ps.forEach((s,i)  => { const el=document.getElementById('ps'+i); if(el) el.textContent=s; });
+  tx.ey.forEach((s,i)  => { const el=document.getElementById('ey'+i); if(el) el.textContent=s; });
+  tx.st.forEach((s,i)  => { const el=document.getElementById('st'+i); if(el) el.textContent=s; });
+  document.getElementById('noDate').textContent = tx.noDate;
+  const btnBack = document.getElementById('btnBack');
+  if (btnBack) btnBack.textContent = step === 3 ? tx.book : tx.back;
+  updateBottomBar();
+}
+
+// ── Load data from API ────────────────────────────────────────────────────────
+async function loadAppData() {
+  showLoading(true);
+  try {
+    const r = await fetch('/api/data');
+    if (!r.ok) throw new Error('Failed to load data');
+    appData = await r.json();
+    renderCategories();
+    applyTranslations();
+  } catch(e) {
+    document.getElementById('catGrid').innerHTML =
+      `<div class="error-page" style="grid-column:1/-1">${t('errGeneric')}</div>`;
+  }
+  showLoading(false);
+}
+
+// ── Progress ──────────────────────────────────────────────────────────────────
+function updateProgress(s) {
+  document.getElementById('pFill').style.width = ((s+1)/4*100) + '%';
+  for(let i=0;i<4;i++){
+    const el=document.getElementById('ps'+i);
+    el.classList.toggle('active', i===s);
+    el.classList.toggle('done', i<s);
+  }
+}
+
+// ── Navigation ────────────────────────────────────────────────────────────────
+function showStep(n) {
+  ['s0','s1','s2','s3','sDone'].forEach((id,i) =>
+    document.getElementById(id).classList.toggle('visible', i===n)
+  );
+  step = n;
+  updateProgress(Math.min(n,3));
+  updateBottomBar();
+  window.scrollTo(0,0);
+}
+
+function showDone(bookingId) {
+  ['s0','s1','s2','s3'].forEach(id =>
+    document.getElementById(id).classList.remove('visible')
+  );
+  document.getElementById('sDone').classList.add('visible');
+  document.getElementById('btnBack').classList.remove('show');
+  document.getElementById('btnNext').style.display = 'none';
+  updateProgress(3);
+  renderDone(bookingId);
+  window.scrollTo(0,0);
+}
+
+function updateBottomBar() {
+  const back = document.getElementById('btnBack');
+  const next = document.getElementById('btnNext');
+  back.classList.toggle('show', step > 0);
+  back.textContent = t('back');
+  next.style.display = 'block';
+  next.textContent = step === 3 ? t('book') : t('next');
+  const can = [
+    () => !!selectedSvc,
+    () => !!selectedMst,
+    () => !!selectedDate && !!selectedTime,
+    () => true,
+  ];
+  next.disabled = !(can[step] && can[step]());
+}
+
+function goBack() {
+  if (step > 0) { step--; showStep(step); }
+}
+
+async function goNext() {
+  if (step === 0 && !selectedSvc) return;
+  if (step === 1 && !selectedMst) return;
+  if (step === 2 && (!selectedDate||!selectedTime)) return;
+  if (step === 3) { await submitBooking(); return; }
+  if (step === 0) await loadMasters();
+  if (step === 1) await initCalendar();
+  if (step === 2) renderCheckout();
+  showStep(step + 1);
+}
+
+function rerender() {
+  if (step === 0) { renderCategories(); if(selectedCat) renderServices(selectedCat); }
+  if (step === 1) renderMasters();
+  if (step === 2) renderWeek();
+  if (step === 3) renderCheckout();
+}
+
+// ── STEP 0: Categories & Services ────────────────────────────────────────────
+const CAT_ICONS = { nails:'💅', hair:'✂️', makeup:'💄', 'make up':'💄', brows:'✨', default:'🌸' };
+
+function renderCategories() {
+  if (!appData) return;
+  const cats = appData.categories;
+  document.getElementById('catGrid').innerHTML = cats.map(cat => {
+    const icon = CAT_ICONS[cat.toLowerCase()] || CAT_ICONS.default;
+    const count = appData.services.filter(s => s.category === cat).length;
+    return `<div class="cat-card ${selectedCat===cat?'sel':''}" onclick="selectCat('${cat}')">
+      <span class="cat-icon">${icon}</span>
+      <div class="cat-name">${cat}</div>
+      <div class="cat-count">${t('catCount', count)}</div>
+    </div>`;
+  }).join('');
+}
+
+function selectCat(cat) {
+  selectedCat = cat;
+  selectedSvc = null;
+  renderCategories();
+  renderServices(cat);
+  document.getElementById('svcList').style.display = 'block';
+  updateBottomBar();
+}
+
+function renderServices(cat) {
+  if (!appData) return;
+  const svcs = appData.services.filter(s => s.category === cat);
+  document.getElementById('svcLabel').textContent = cat;
+  document.getElementById('svcItems').innerHTML = svcs.map(s => {
+    const dur = appData.durations[s.id];
+    return `<div class="svc-item ${selectedSvc&&selectedSvc.id===s.id?'sel':''}" onclick="selectSvc('${s.id}')">
+      <div>
+        <div class="svc-name">${s.name}</div>
+        <div class="svc-dur">${dur ? t('svcDur',dur) : ''}</div>
+      </div>
+      <div class="svc-price">${s.price} AZN</div>
+      <div class="radio"><div class="radio-inner"></div></div>
+    </div>`;
+  }).join('');
+}
+
+function selectSvc(id) {
+  const s = appData.services.find(x => x.id === id);
+  if (!s) return;
+  selectedSvc = { ...s, duration: appData.durations[id] || 60 };
+  renderServices(selectedCat);
+  updateBottomBar();
+}
+
+// ── STEP 1: Masters ───────────────────────────────────────────────────────────
+async function loadMasters() {
+  // Masters are already in appData; just render
+  renderMasters();
+}
+
+function renderMasters() {
+  if (!appData) return;
+  document.getElementById('masterList').innerHTML = appData.masters.map(m => {
+    const meta = t('masterMeta', m.specialty, m.experience);
+    return `<div class="master-card ${selectedMst&&selectedMst.id===m.id?'sel':''}" onclick="selectMst('${m.id}')">
+      <div class="avatar">${m.initials}</div>
+      <div style="flex:1">
+        <div class="master-name">${m.name}</div>
+        <div class="master-meta">${meta}</div>
+      </div>
+      <div style="text-align:right">
+        <div class="master-price">${selectedSvc ? selectedSvc.price+' AZN' : ''}</div>
+        <div class="radio" style="margin:6px 0 0 auto"><div class="radio-inner"></div></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function selectMst(id) {
+  selectedMst = appData.masters.find(m => m.id === id);
+  renderMasters();
+  updateBottomBar();
+}
+
+// ── STEP 2: Calendar ──────────────────────────────────────────────────────────
+async function initCalendar() {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const day   = today.getDay();
+  weekStart   = new Date(today);
+  weekStart.setDate(today.getDate() - (day === 0 ? 6 : day - 1));
+  weekOffset  = 0;
+  selectedDate = null;
+  selectedTime = null;
+
+  // Fetch available dates for this master
+  showLoading(true);
+  try {
+    const r = await fetch(`/api/dates?master_id=${selectedMst.id}`);
+    const d = await r.json();
+    availDates = d.dates || [];
+  } catch(e) { availDates = []; }
+  showLoading(false);
+  renderWeek();
+}
+
+function shiftWeek(dir) {
+  weekOffset += dir;
+  renderWeek();
+}
+
+function renderWeek() {
+  const ws = new Date(weekStart);
+  ws.setDate(ws.getDate() + weekOffset * 7);
+  const we = new Date(ws); we.setDate(we.getDate() + 6);
+  const mx = T[lang].months;
+  document.getElementById('wLabel').textContent =
+    `${mx[ws.getMonth()]} ${ws.getDate()} – ${mx[we.getMonth()]} ${we.getDate()}`;
+  document.getElementById('wPrev').disabled = weekOffset <= 0;
+  document.getElementById('wNext').disabled = weekOffset >= 3;
+
+  const avail = new Set(availDates);
+  const today = new Date(); today.setHours(0,0,0,0);
+  const dns   = T[lang].days;
+  let html    = '';
+  for (let i = 0; i < 7; i++) {
+    const d   = new Date(ws); d.setDate(ws.getDate() + i);
+    const iso = d.toISOString().split('T')[0];
+    const past  = d < today;
+    const ok    = !past && avail.has(iso);
+    const isSel = selectedDate === iso;
+    let cls = 'day';
+    if (past)        cls += ' past';
+    else if (isSel)  cls += ' sel avail';
+    else if (ok)     cls += ' avail';
+    else             cls += ' unavail';
+    html += `<div class="${cls}" ${ok||isSel?`onclick="selectDate('${iso}')"`:''}">
+      <div class="day-name">${dns[i]}</div>
+      <div class="day-num">${d.getDate()}</div>
+    </div>`;
+  }
+  document.getElementById('daysStrip').innerHTML = html;
+}
+
+async function selectDate(iso) {
+  selectedDate = iso;
+  selectedTime = null;
+  renderWeek();
+  document.getElementById('timeSection').innerHTML = `<div class="mini-spinner"></div>`;
+  try {
+    const r = await fetch(`/api/slots?master_id=${selectedMst.id}&service_id=${selectedSvc.id}&date=${iso}`);
+    const d = await r.json();
+    availSlots = d.slots || [];
+  } catch(e) { availSlots = []; }
+  renderSlots();
+  updateBottomBar();
+}
+
+function renderSlots() {
+  const morning   = availSlots.filter(s => parseInt(s) < 12);
+  const afternoon = availSlots.filter(s => parseInt(s) >= 12 && parseInt(s) < 17);
+  const evening   = availSlots.filter(s => parseInt(s) >= 17);
+  if (!availSlots.length) {
+    document.getElementById('timeSection').innerHTML =
+      `<p style="color:var(--stone);font-size:13px;font-style:italic">${t('noSlots')}</p>`;
+    return;
+  }
+  const groups = [
+    { label: t('morning'),   slots: morning   },
+    { label: t('afternoon'), slots: afternoon },
+    { label: t('evening'),   slots: evening   },
+  ].filter(g => g.slots.length);
+
+  document.getElementById('timeSection').innerHTML = groups.map(g => `
+    <div class="time-group">
+      <div class="tg-label">${g.label}</div>
+      <div class="time-grid">
+        ${g.slots.map(s => `<div class="slot ${selectedTime===s?'sel':''}" onclick="selectTime('${s}')">${s}</div>`).join('')}
+      </div>
+    </div>
+  `).join('');
+}
+
+function selectTime(t_) {
+  selectedTime = t_;
+  renderSlots();
+  updateBottomBar();
+}
+
+// ── STEP 3: Checkout ──────────────────────────────────────────────────────────
+function renderCheckout() {
+  const df = new Date(selectedDate+'T12:00:00').toLocaleDateString(
+    lang==='en'?'en-GB':'ru-RU', {weekday:'short',day:'numeric',month:'short'}
+  );
+  const labels = t('sumLabels');
+  document.getElementById('summary').innerHTML = [
+    [labels[0], selectedSvc.name],
+    [labels[1], selectedMst.name],
+    [labels[2], df],
+    [labels[3], selectedTime],
+  ].map(([l,v]) =>
+    `<div class="sum-row"><span class="sum-label">${l}</span><span class="sum-val">${v}</span></div>`
+  ).join('') +
+  `<div class="sum-row"><span class="sum-label">${labels[4]}</span><span class="sum-price">${selectedSvc.price} AZN</span></div>`;
+
+  document.getElementById('lName').textContent  = t('lName');
+  document.getElementById('lPhone').textContent = t('lPhone');
+  document.getElementById('lNote').textContent  = t('lNote');
+  document.getElementById('iName').placeholder  = t('phName');
+  document.getElementById('iPhone').placeholder = t('phPhone');
+  document.getElementById('iNote').placeholder  = t('phNote');
+  document.getElementById('hPhone').textContent = t('hPhone');
+  document.getElementById('eName').textContent  = t('eName');
+  document.getElementById('ePhone').textContent = t('ePhone');
+  if (prefilledPhone) document.getElementById('iPhone').value = prefilledPhone;
+}
+
+// ── Submit ─────────────────────────────────────────────────────────────────────
+async function submitBooking() {
+  const name  = document.getElementById('iName').value.trim();
+  const phone = document.getElementById('iPhone').value.trim();
+  let ok = true;
+
+  document.getElementById('iName').classList.toggle('err', !name);
+  document.getElementById('eName').classList.toggle('show', !name);
+  if (!name) ok = false;
+
+  const phoneOk = phone.replace(/\D/g,'').length >= 7;
+  document.getElementById('iPhone').classList.toggle('err', !phoneOk);
+  document.getElementById('ePhone').classList.toggle('show', !phoneOk);
+  if (!phoneOk) ok = false;
+
+  if (!ok) return;
+
+  showLoading(true);
+  try {
+    const resp = await fetch('/api/book', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        name, phone,
+        note:       document.getElementById('iNote').value.trim(),
+        service_id: selectedSvc.id,
+        master_id:  selectedMst.id,
+        date:       selectedDate,
+        time:       selectedTime,
+      })
+    });
+    showLoading(false);
+    if (resp.ok) {
+      const data = await resp.json();
+      showDone(data.booking_id);
+    } else if (resp.status === 409) {
+      showToast(t('errSlot'));
+      showStep(2);
+    } else {
+      showToast(t('errGeneric'));
+    }
+  } catch(e) {
+    showLoading(false);
+    showToast(t('errGeneric'));
+  }
+}
+
+// ── Confirmation ──────────────────────────────────────────────────────────────
+function renderDone(bookingId) {
+  document.getElementById('doneTitle').textContent = t('doneTitle');
+  document.getElementById('doneSub').textContent   = t('doneSub');
+  document.getElementById('doneNote').textContent  = t('doneNote');
+  document.getElementById('doneId').textContent    = 'Booking ID: #' + bookingId;
+  const df = new Date(selectedDate+'T12:00:00').toLocaleDateString(
+    lang==='en'?'en-GB':'ru-RU', {weekday:'long',day:'numeric',month:'long'}
+  );
+  const labels = t('doneRowLabels');
+  document.getElementById('doneDetails').innerHTML = [
+    [labels[0], selectedSvc.name],
+    [labels[1], selectedMst.name],
+    [labels[2], df],
+    [labels[3], selectedTime],
+    [labels[4], selectedSvc.price + ' AZN'],
+  ].map(([l,v]) =>
+    `<div class="done-row"><span class="done-rl">${l}</span><span class="done-rv">${v}</span></div>`
+  ).join('');
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function showLoading(v) {
+  document.getElementById('loading').classList.toggle('show', v);
+}
+function showToast(msg) {
+  const t_ = document.getElementById('toast');
+  t_.textContent = msg;
+  t_.classList.add('show');
+  setTimeout(() => t_.classList.remove('show'), 3500);
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+applyTranslations();
+loadAppData();
+</script>
+</body>
+</html>

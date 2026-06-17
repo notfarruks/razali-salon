@@ -47,6 +47,7 @@ executor = ThreadPoolExecutor(max_workers=4)
 
 # ─── Env ──────────────────────────────────────────────────────────────────────
 BOOKING_URL      = os.environ.get("BOOKING_URL", "https://razali-salon-production.up.railway.app/book")
+LANDING_URL      = BOOKING_URL.rsplit("/book", 1)[0] or BOOKING_URL  # base URL for landing page
 SALON_PHONE      = os.environ.get("SALON_PHONE", "+994XXXXXXXXX")
 CANCEL_CUTOFF_HOURS = int(os.environ.get("CANCEL_CUTOFF_HOURS", "2"))  # min hours before appt to allow cancel
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "razali2026")
@@ -688,32 +689,23 @@ async def serve_booking_page():
 GREETER = {
     "az": (
         "👋 *RAZALI* salonuna xoş gəlmisiniz!\n\n"
-        "Rezervasiya etmək üçün linkə keçin:\n"
+        "Rezervasiya etmək üçün:\n"
         "{url}\n\n"
-        "Mövcud rezervasiyalarınız üçün:\n"
         "*MƏNİM* — rezervasiyalarıma bax\n"
-        "*DƏYİŞ* — vaxtı dəyiş\n"
-        "*İPTAL* — ləğv et\n"
         "*KÖMƏK* — {phone}"
     ),
     "en": (
         "👋 Welcome to *RAZALI* salon!\n\n"
-        "Book your appointment here:\n"
+        "Book your appointment:\n"
         "{url}\n\n"
-        "For existing bookings:\n"
         "*MY* — view my bookings\n"
-        "*CHANGE* — reschedule\n"
-        "*CANCEL* — cancel\n"
         "*HELP* — {phone}"
     ),
     "ru": (
         "👋 Добро пожаловать в салон *RAZALI*!\n\n"
-        "Запишитесь онлайн:\n"
+        "Записаться онлайн:\n"
         "{url}\n\n"
-        "Управление записями:\n"
         "*МОИ* — мои записи\n"
-        "*ПЕРЕНОС* — перенести\n"
-        "*ОТМЕНА* — отменить\n"
         "*ПОМОЩЬ* — {phone}"
     ),
 }
@@ -811,6 +803,14 @@ async def whatsapp_webhook(request: Request):
 
     session = get_wa_session(From)
     lang    = session.get("lang")
+
+    # ── GREETINGS — always reset to language picker ────────────────────────────
+    GREETINGS = {"hi","hello","hey","salam","привет","start","merhaba","хай","helo"}
+    if ulower in GREETINGS:
+        session.update({"lang": None, "state": "IDLE", "cancel_booking": None,
+                        "reschedule_booking": None})
+        save_wa_session(From, session)
+        return reply_wa("👋 *RAZALI*\n\nSelect language / Dil seçin / Выберите язык:\n\n🇦🇿 *AZ*\n🇬🇧 *EN*\n🇷🇺 *RU*")
 
     # ── DETECT LANGUAGE ────────────────────────────────────────────────────────
     if lang is None:
@@ -965,11 +965,9 @@ async def whatsapp_webhook(request: Request):
             nb = {"en":"📋 No active bookings.","ru":"📋 Нет активных записей.","az":"📋 Aktiv rezervasiyanız yoxdur."}
             return reply_wa(nb[lang])
         header = {"en":"📋 *Your bookings:*","ru":"📋 *Ваши записи:*","az":"📋 *Rezervasiyalarınız:*"}
-        cancel_kw = KEYWORDS["cancel"][lang]
-        change_kw = KEYWORDS["reschedule"][lang]
-        footer = {"en":f"To cancel: *{cancel_kw}*\nTo reschedule: *{change_kw}*",
-                  "ru":f"Отмена: *{cancel_kw}*\nПеренос: *{change_kw}*",
-                  "az":f"Ləğv: *{cancel_kw}*\nDəyiş: *{change_kw}*"}
+        footer = {"en":f"To cancel or reschedule, visit:\n{BOOKING_URL}",
+                  "ru":f"Для отмены или переноса:\n{BOOKING_URL}",
+                  "az":f"Ləğv və ya dəyişiklik üçün:\n{BOOKING_URL}"}
         return reply_wa(header[lang]+"\n\n"+fmt_bookings(bookings,lang)+"\n\n"+footer[lang])
 
     # CANCEL
@@ -1022,4 +1020,4 @@ async def whatsapp_webhook(request: Request):
     # ── FALLBACK — show greeting/menu ─────────────────────────────────────────
     save_wa_session(From, session)
     greeting = GREETER.get(lang, GREETER["az"])
-    return reply_wa(greeting.format(url=BOOKING_URL, phone=SALON_PHONE))
+    return reply_wa(greeting.format(url=LANDING_URL, phone=SALON_PHONE))

@@ -48,6 +48,7 @@ executor = ThreadPoolExecutor(max_workers=4)
 # ─── Env ──────────────────────────────────────────────────────────────────────
 BOOKING_URL      = os.environ.get("BOOKING_URL", "https://razali-salon-production.up.railway.app/book")
 SALON_PHONE      = os.environ.get("SALON_PHONE", "+994XXXXXXXXX")
+CANCEL_CUTOFF_HOURS = int(os.environ.get("CANCEL_CUTOFF_HOURS", "2"))  # min hours before appt to allow cancel
 TWILIO_SID       = os.environ.get("TWILIO_ACCOUNT_SID", "")
 TWILIO_TOKEN     = os.environ.get("TWILIO_AUTH_TOKEN", "")
 TWILIO_WA_NUMBER = os.environ.get("TWILIO_WHATSAPP_NUMBER", "whatsapp:+994557192949")
@@ -564,6 +565,15 @@ async def api_cancel_booking(req: CancelWebRequest):
         executor, fetch_booking_by_id, wa_phone, req.booking_id)
     if not b.get("found"):
         raise HTTPException(404, "Booking not found")
+    # Enforce cancellation cutoff
+    try:
+        appt_dt = datetime.strptime(f"{b['date']} {b['time']}", "%Y-%m-%d %H:%M")
+        if datetime.now() > appt_dt - timedelta(hours=CANCEL_CUTOFF_HOURS):
+            raise HTTPException(400, f"Cancellations must be made at least {CANCEL_CUTOFF_HOURS} hours before the appointment.")
+    except HTTPException:
+        raise
+    except Exception:
+        pass
     ok = await asyncio.get_event_loop().run_in_executor(executor, cancel_booking, b["row"])
     if ok:
         asyncio.create_task(telegram(cancel_alert(
@@ -761,6 +771,20 @@ async def whatsapp_webhook(request: Request):
     if session["state"] == "CONFIRM_CANCEL":
         b = session.get("cancel_booking",{})
         if ulower == kw["yes"]:
+            # Enforce cancellation cutoff
+            try:
+                appt_dt = datetime.strptime(f"{b['date']} {b['time']}", "%Y-%m-%d %H:%M")
+                if datetime.now() > appt_dt - timedelta(hours=CANCEL_CUTOFF_HOURS):
+                    session.update({"state":"IDLE","cancel_booking":None})
+                    save_wa_session(From, session)
+                    msgs = {
+                        "en": f"⚠️ Sorry, cancellations must be made at least {CANCEL_CUTOFF_HOURS} hours before your appointment. Please contact us directly: {SALON_PHONE}",
+                        "ru": f"⚠️ Отменить запись можно не менее чем за {CANCEL_CUTOFF_HOURS} ч до визита. Свяжитесь с нами: {SALON_PHONE}",
+                        "az": f"⚠️ Rezervasiyanı görüşdən ən az {CANCEL_CUTOFF_HOURS} saat əvvəl ləğv etmək mümkündür. Bizimlə əlaqə: {SALON_PHONE}",
+                    }
+                    return reply_wa(msgs[lang])
+            except Exception:
+                pass
             ok = await asyncio.get_event_loop().run_in_executor(executor, cancel_booking, b["row"])
             if ok:
                 asyncio.create_task(telegram(cancel_alert(

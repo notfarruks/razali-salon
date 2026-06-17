@@ -169,7 +169,7 @@ body{background:var(--cream);color:var(--charcoal);font-family:var(--fb);font-si
 <div class="toast" id="toast"></div>
 
 <header class="header">
-  <div class="logo">RAZALI<span>Nails / Hair / Make Up</span></div>
+  <div class="logo" onclick="goHome()" style="cursor:pointer">RAZALI<span>Nails / Hair / Make Up</span></div>
   <div class="header-right">
     <div class="lang-toggle">
       <button class="lang-btn active" onclick="setLang('az')">AZ</button>
@@ -269,6 +269,7 @@ body{background:var(--cream);color:var(--charcoal);font-family:var(--fb);font-si
     </div>
     <p style="font-size:12px;color:var(--stone);line-height:1.7" id="doneNote"></p>
     <button onclick="toggleManage()" class="btn-next" style="margin-top:20px;width:100%;letter-spacing:.05em" id="doneManageBtn"></button>
+    <button onclick="goHome()" class="btn-back show" style="display:block;width:100%;text-align:center;margin-top:10px;padding:14px" id="doneHomeBtn"></button>
   </div>
 </div>
 
@@ -365,6 +366,8 @@ const T = {
     mgCancelConfirm: 'Bu rezervasiyanı ləğv etmək istəyirsiniz?',
     mgCancelOk: '✓ Rezervasiya ləğv edildi',
     mgCancelErr: 'Xəta. Yenidən cəhd edin.',
+    mgCancelTooLate: '⚠️ Görüşə 2 saatdan az qaldığında ləğv etmək mümkün deyil. Salonla əlaqə saxlayın.',
+    doneHome: '← Ana səhifəyə qayıt',
     mgRscEyebrow: 'Yeni vaxt seçin',
     mgRscTitle: 'Rezervasiyanı dəyişdir',
     mgRscSub: (sn, mn) => `${sn} — ${mn}`,
@@ -411,6 +414,8 @@ const T = {
     mgCancelConfirm: 'Cancel this booking?',
     mgCancelOk: '✓ Booking cancelled',
     mgCancelErr: 'Error. Please try again.',
+    mgCancelTooLate: '⚠️ Cannot cancel within 2 hours of appointment. Please contact the salon directly.',
+    doneHome: '← Back to home',
     mgRscEyebrow: 'Choose new time',
     mgRscTitle: 'Reschedule booking',
     mgRscSub: (sn, mn) => `${sn} with ${mn}`,
@@ -457,6 +462,8 @@ const T = {
     mgCancelConfirm: 'Отменить эту запись?',
     mgCancelOk: '✓ Запись отменена',
     mgCancelErr: 'Ошибка. Попробуйте снова.',
+    mgCancelTooLate: '⚠️ Отменить запись за 2 часа до визита невозможно. Свяжитесь с салоном.',
+    doneHome: '← На главную',
     mgRscEyebrow: 'Выберите новое время',
     mgRscTitle: 'Перенос записи',
     mgRscSub: (sn, mn) => `${sn} — ${mn}`,
@@ -621,10 +628,22 @@ async function cancelBooking(idx) {
       mgBookings.splice(idx, 1);
       renderMgBookings();
       showToast(t('mgCancelOk'));
+    } else if (r.status === 400) {
+      const d = await r.json();
+      showToast(d.detail || t('mgCancelTooLate'));
     } else {
       showToast(t('mgCancelErr'));
     }
   } catch(e) { showLoading(false); showToast(t('mgCancelErr')); }
+}
+
+function goHome() {
+  if (manageMode) toggleManage();
+  selectedCat = null; selectedSvc = null; selectedMst = null;
+  selectedDate = null; selectedTime = null;
+  step = 0;
+  showStep(0);
+  document.getElementById('svcList').style.display = 'none';
 }
 
 async function startReschedule(idx) {
@@ -1097,6 +1116,7 @@ function renderDone(bookingId) {
   document.getElementById('doneNote').textContent  = t('doneNote');
   document.getElementById('doneId').textContent    = 'Booking ID: #' + bookingId;
   document.getElementById('doneManageBtn').textContent = t('doneManage');
+  document.getElementById('doneHomeBtn').textContent   = t('doneHome');
   const df = new Date(selectedDate+'T12:00:00').toLocaleDateString(
     lang==='ru'?'ru-RU':'az-AZ', {weekday:'long',day:'numeric',month:'long'}
   );

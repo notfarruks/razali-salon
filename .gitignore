@@ -1,0 +1,14 @@
+# Sensitive — never commit these
+creds.json
+local_config.py
+GOOGLE_CREDS_value.txt
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.env
+
+# OS
+.DS_Store
+Thumbs.db

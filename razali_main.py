@@ -46,17 +46,17 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], all
 executor = ThreadPoolExecutor(max_workers=4)
 
 # ─── Env ──────────────────────────────────────────────────────────────────────
-BOOKING_URL      = os.environ.get("BOOKING_URL", "https://your-domain.com/book")
+BOOKING_URL      = os.environ.get("BOOKING_URL", "https://razali-salon-production.up.railway.app/book")
 SALON_PHONE      = os.environ.get("SALON_PHONE", "+994XXXXXXXXX")
 TWILIO_SID       = os.environ.get("TWILIO_ACCOUNT_SID", "")
 TWILIO_TOKEN     = os.environ.get("TWILIO_AUTH_TOKEN", "")
-TWILIO_WA_NUMBER = os.environ.get("TWILIO_WHATSAPP_NUMBER", "whatsapp:+14155238886")
+TWILIO_WA_NUMBER = os.environ.get("TWILIO_WHATSAPP_NUMBER", "whatsapp:+994557192949")
 TELEGRAM_TOKEN   = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT    = os.environ.get("TELEGRAM_CHAT_ID", "")
 
 # ─── Redis ────────────────────────────────────────────────────────────────────
 redis_client = redis.from_url(
-    os.environ.get("REDIS_URL", "redis://localhost:6379"),
+    os.environ.get("REDIS_URL", "redis://default:BaEbVkRTeNZheGeHSZyWVmRafYjhPncI@redis.railway.internal:6379"),
     decode_responses=True
 )
 
@@ -503,7 +503,7 @@ async def api_book(req: BookingRequest):
 async def serve_booking_page():
     html_path = Path(__file__).parent / "razali_booking.html"
     if html_path.exists():
-        return HTMLResponse(html_path.read_text())
+        return HTMLResponse(html_path.read_text(encoding="utf-8"))
     raise HTTPException(404, "Booking page not found")
 
 # ═══════════════════════════════════════════════════════════════════════════════

@@ -26,8 +26,8 @@ body{background:var(--cream);color:var(--charcoal);font-family:var(--fb);font-si
 .lang-toggle{display:flex;gap:4px}
 .lang-btn{background:none;border:1px solid #444;color:var(--stone);font-family:var(--fb);font-size:11px;font-weight:500;letter-spacing:.1em;padding:5px 8px;cursor:pointer;transition:all .2s}
 .lang-btn.active{background:var(--gold);border-color:var(--gold);color:var(--charcoal)}
-.manage-btn{background:none;border:1px solid #444;color:var(--stone);padding:5px 10px;cursor:pointer;font-size:16px;transition:all .2s;line-height:1}
-.manage-btn.active{background:var(--gold);border-color:var(--gold)}
+.manage-btn{background:none;border:1px solid #444;color:var(--stone);padding:5px 12px;cursor:pointer;font-size:11px;font-family:var(--fb);font-weight:500;letter-spacing:.08em;transition:all .2s;line-height:1;white-space:nowrap}
+.manage-btn.active{background:var(--gold);border-color:var(--gold);color:var(--charcoal)}
 
 /* PROGRESS */
 .progress-bar{background:var(--charcoal);padding:0 24px 14px}
@@ -176,7 +176,7 @@ body{background:var(--cream);color:var(--charcoal);font-family:var(--fb);font-si
       <button class="lang-btn" onclick="setLang('en')">EN</button>
       <button class="lang-btn" onclick="setLang('ru')">RU</button>
     </div>
-    <button class="manage-btn" id="manageBtn" onclick="toggleManage()" title="My Bookings">📋</button>
+    <button class="manage-btn" id="manageBtn" onclick="toggleManage()">📋 MY BOOKINGS</button>
   </div>
 </header>
 
@@ -367,6 +367,7 @@ const T = {
     mgCancelOk: '✓ Rezervasiya ləğv edildi',
     mgCancelErr: 'Xəta. Yenidən cəhd edin.',
     mgCancelTooLate: '⚠️ Görüşə 2 saatdan az qaldığında ləğv etmək mümkün deyil. Salonla əlaqə saxlayın.',
+    myBookingsBtn: '📋 Rezervasiyam',
     doneHome: '← Ana səhifəyə qayıt',
     mgRscEyebrow: 'Yeni vaxt seçin',
     mgRscTitle: 'Rezervasiyanı dəyişdir',
@@ -415,6 +416,7 @@ const T = {
     mgCancelOk: '✓ Booking cancelled',
     mgCancelErr: 'Error. Please try again.',
     mgCancelTooLate: '⚠️ Cannot cancel within 2 hours of appointment. Please contact the salon directly.',
+    myBookingsBtn: '📋 My Bookings',
     doneHome: '← Back to home',
     mgRscEyebrow: 'Choose new time',
     mgRscTitle: 'Reschedule booking',
@@ -463,6 +465,7 @@ const T = {
     mgCancelOk: '✓ Запись отменена',
     mgCancelErr: 'Ошибка. Попробуйте снова.',
     mgCancelTooLate: '⚠️ Отменить запись за 2 часа до визита невозможно. Свяжитесь с салоном.',
+    myBookingsBtn: '📋 Мои записи',
     doneHome: '← На главную',
     mgRscEyebrow: 'Выберите новое время',
     mgRscTitle: 'Перенос записи',
@@ -527,6 +530,7 @@ function applyTranslations() {
   tx.ey.forEach((s,i)  => { const el=document.getElementById('ey'+i); if(el) el.textContent=s; });
   tx.st.forEach((s,i)  => { const el=document.getElementById('st'+i); if(el) el.textContent=s; });
   document.getElementById('noDate').textContent = tx.noDate;
+  document.getElementById('manageBtn').textContent = tx.myBookingsBtn;
   updateBottomBar();
 }
 

@@ -602,8 +602,7 @@ function renderMgBookings() {
     return;
   }
   el.innerHTML = mgBookings.map((b,i) => {
-    const df = new Date(b.date+'T12:00:00').toLocaleDateString(
-      lang==='ru'?'ru-RU':'az-AZ', {weekday:'short',day:'numeric',month:'short'});
+    const df = fmtDate(b.date);
     return `<div class="mg-booking-card">
       <div class="mg-booking-id">Booking #${b.booking_id}</div>
       <div class="mg-booking-row"><span class="mg-booking-label">💅</span><span class="mg-booking-val">${b.service_name}</span></div>
@@ -1047,11 +1046,17 @@ function renderSlots() {
 
 function selectTime(t_) { selectedTime = t_; renderSlots(); updateBottomBar(); }
 
+function fmtDate(dateStr) {
+  const d = new Date(dateStr + 'T12:00:00');
+  const mx = T[lang].months;
+  const dx = T[lang].days;
+  const dayIdx = (d.getDay() + 6) % 7; // 0=Mon … 6=Sun
+  return `${d.getDate()} ${mx[d.getMonth()]}, ${dx[dayIdx]}`;
+}
+
 // ── STEP 3: Checkout ──────────────────────────────────────────────────────────
 function renderCheckout() {
-  const df = new Date(selectedDate+'T12:00:00').toLocaleDateString(
-    lang==='ru'?'ru-RU':'az-AZ', {weekday:'short',day:'numeric',month:'short'}
-  );
+  const df = fmtDate(selectedDate);
   const labels = t('sumLabels');
   document.getElementById('summary').innerHTML = [
     [labels[0], selectedSvc.name],

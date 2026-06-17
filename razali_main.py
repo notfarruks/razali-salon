@@ -998,4 +998,28 @@ async def whatsapp_webhook(request: Request):
     if ulower == kw["reschedule"]:
         b = await asyncio.get_event_loop().run_in_executor(executor, fetch_active_booking, From)
         if not b["found"]:
-            nb = {"en":"📋 No 
+            nb = {"en":"📋 No active bookings to reschedule.",
+                  "ru":"📋 Нет активных записей для переноса.",
+                  "az":"📋 Dəyişdiriləcək aktiv rezervasiya yoxdur."}
+            save_wa_session(From, session)
+            return reply_wa(nb[lang])
+        session["reschedule_booking"] = b
+        dates = await asyncio.get_event_loop().run_in_executor(
+            executor, get_available_dates, b["master_id"])
+        session["available_dates"] = dates
+        session["state"] = "RESCHEDULE_DATE"
+        sn = SERVICES.get(b["service_id"],{}).get("name","")
+        mn = MASTERS.get(b["master_id"],{}).get("name","")
+        df = datetime.strptime(b["date"],"%Y-%m-%d").strftime("%d %b %Y")
+        save_wa_session(From, session)
+        hdr = {
+            "en": f"📋 *Current booking:*\n🆔 #{b['booking_id']}\n💅 {sn}\n👩 {mn}\n📅 {df} • 🕐 {b['time']}\n\nPick a new date:",
+            "ru": f"📋 *Текущая запись:*\n🆔 #{b['booking_id']}\n💅 {sn}\n👩 {mn}\n📅 {df} • 🕐 {b['time']}\n\nВыберите новую дату:",
+            "az": f"📋 *Mövcud rezervasiya:*\n🆔 #{b['booking_id']}\n💅 {sn}\n👩 {mn}\n📅 {df} • 🕐 {b['time']}\n\nYeni tarix seçin:",
+        }
+        return reply_wa(hdr[lang]+"\n\n"+fmt_dates(dates))
+
+    # ── FALLBACK — show greeting/menu ─────────────────────────────────────────
+    save_wa_session(From, session)
+    greeting = GREETER.get(lang, GREETER["az"])
+    return reply_wa(greeting.format(url=BOOKING_URL, phone=SALON_PHONE))

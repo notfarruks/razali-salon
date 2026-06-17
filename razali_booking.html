@@ -22,9 +22,12 @@ body{background:var(--cream);color:var(--charcoal);font-family:var(--fb);font-si
 .header{background:var(--charcoal);padding:18px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
 .logo{font-family:var(--fd);font-size:22px;font-weight:600;letter-spacing:.12em;color:var(--cream);text-transform:uppercase}
 .logo span{font-size:9px;font-family:var(--fb);font-weight:300;letter-spacing:.2em;display:block;color:var(--stone);margin-top:1px}
+.header-right{display:flex;align-items:center;gap:8px}
 .lang-toggle{display:flex;gap:4px}
-.lang-btn{background:none;border:1px solid #444;color:var(--stone);font-family:var(--fb);font-size:11px;font-weight:500;letter-spacing:.1em;padding:5px 10px;cursor:pointer;transition:all .2s}
+.lang-btn{background:none;border:1px solid #444;color:var(--stone);font-family:var(--fb);font-size:11px;font-weight:500;letter-spacing:.1em;padding:5px 8px;cursor:pointer;transition:all .2s}
 .lang-btn.active{background:var(--gold);border-color:var(--gold);color:var(--charcoal)}
+.manage-btn{background:none;border:1px solid #444;color:var(--stone);padding:5px 10px;cursor:pointer;font-size:16px;transition:all .2s;line-height:1}
+.manage-btn.active{background:var(--gold);border-color:var(--gold)}
 
 /* PROGRESS */
 .progress-bar{background:var(--charcoal);padding:0 24px 14px}
@@ -141,6 +144,23 @@ body{background:var(--cream);color:var(--charcoal);font-family:var(--fb);font-si
 
 /* ERROR PAGE */
 .error-page{text-align:center;padding:60px 24px;color:var(--stone)}
+
+/* MANAGE */
+.manage-view{display:none;padding:24px 24px 100px;animation:fadeIn .3s ease}
+.manage-view.visible{display:block}
+.mg-booking-card{background:var(--white);border:1px solid var(--cream-dark);padding:18px;margin-bottom:12px}
+.mg-booking-id{font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--gold);font-weight:600;margin-bottom:10px}
+.mg-booking-row{display:flex;gap:8px;padding:4px 0;font-size:13px}
+.mg-booking-label{color:var(--stone);min-width:60px}
+.mg-booking-val{font-weight:500}
+.mg-actions{display:flex;gap:8px;margin-top:14px}
+.mg-btn-cancel{flex:1;background:none;border:1px solid var(--error);color:var(--error);padding:11px;font-family:var(--fb);font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;transition:all .2s}
+.mg-btn-cancel:hover{background:var(--error);color:var(--white)}
+.mg-btn-rsc{flex:1;background:none;border:1px solid var(--gold);color:var(--charcoal);padding:11px;font-family:var(--fb);font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;transition:all .2s}
+.mg-btn-rsc:hover{background:var(--gold)}
+.mg-empty{text-align:center;padding:40px 0;color:var(--stone);font-size:14px}
+.mg-success{text-align:center;padding:30px 0}
+.mg-success-icon{font-size:40px;margin-bottom:12px}
 </style>
 </head>
 <body>
@@ -150,13 +170,17 @@ body{background:var(--cream);color:var(--charcoal);font-family:var(--fb);font-si
 
 <header class="header">
   <div class="logo">RAZALI<span>Nails / Hair / Make Up</span></div>
-  <div class="lang-toggle">
-    <button class="lang-btn active" onclick="setLang('en')">EN</button>
-    <button class="lang-btn" onclick="setLang('ru')">RU</button>
+  <div class="header-right">
+    <div class="lang-toggle">
+      <button class="lang-btn active" onclick="setLang('az')">AZ</button>
+      <button class="lang-btn" onclick="setLang('en')">EN</button>
+      <button class="lang-btn" onclick="setLang('ru')">RU</button>
+    </div>
+    <button class="manage-btn" id="manageBtn" onclick="toggleManage()" title="My Bookings">📋</button>
   </div>
 </header>
 
-<div class="progress-bar">
+<div class="progress-bar" id="progressBar">
   <div class="progress-track"><div class="progress-fill" id="pFill"></div></div>
   <div class="progress-steps">
     <span class="ps" id="ps0"></span>
@@ -165,6 +189,8 @@ body{background:var(--cream);color:var(--charcoal);font-family:var(--fb);font-si
     <span class="ps" id="ps3"></span>
   </div>
 </div>
+
+<!-- ══ BOOKING FLOW ══════════════════════════════════════════════════════════ -->
 
 <!-- STEP 0: Service -->
 <div class="section visible" id="s0">
@@ -242,17 +268,112 @@ body{background:var(--cream);color:var(--charcoal);font-family:var(--fb);font-si
       <div id="doneDetails"></div>
     </div>
     <p style="font-size:12px;color:var(--stone);line-height:1.7" id="doneNote"></p>
+    <button onclick="toggleManage()" class="btn-next" style="margin-top:20px;width:100%;letter-spacing:.05em" id="doneManageBtn"></button>
   </div>
 </div>
 
-<div class="bottom">
+<div class="bottom" id="bottomBar">
   <button class="btn-back" id="btnBack" onclick="goBack()"></button>
   <button class="btn-next" id="btnNext" onclick="goNext()" disabled></button>
+</div>
+
+<!-- ══ MANAGE VIEW ═══════════════════════════════════════════════════════════ -->
+<div class="manage-view" id="manageView">
+
+  <!-- Phase 1: Enter phone -->
+  <div id="mgP1">
+    <div class="section-header" style="padding:0 0 20px;border:none">
+      <div class="eyebrow" id="mgEyebrow"></div>
+      <h1 class="section-title" id="mgTitle"></h1>
+    </div>
+    <div class="form-field" style="margin-top:8px">
+      <label class="form-label" id="mgPhoneLbl"></label>
+      <input class="form-input" id="mgPhoneInput" type="tel" maxlength="20">
+    </div>
+    <button onclick="findBookings()" class="btn-next" style="width:100%" id="mgFindBtn"></button>
+  </div>
+
+  <!-- Phase 2: Booking list -->
+  <div id="mgP2" style="display:none">
+    <div style="margin-bottom:16px">
+      <button onclick="showMgPhase(1)" class="btn-back show" style="display:inline-block" id="mgBackBtn"></button>
+    </div>
+    <div id="mgBookingsList"></div>
+  </div>
+
+  <!-- Phase 3: Reschedule date/time picker -->
+  <div id="mgP3" style="display:none">
+    <div style="margin-bottom:16px">
+      <div class="eyebrow" id="mgRscEyebrow"></div>
+      <h2 class="section-title" style="font-size:22px" id="mgRscTitle"></h2>
+      <p style="font-size:12px;color:var(--stone);margin-top:6px" id="mgRscSub"></p>
+    </div>
+    <div class="cal-wrap" style="padding:0">
+      <div class="week-nav">
+        <button class="week-arrow" id="mgWPrev" onclick="mgShiftWeek(-1)">←</button>
+        <span class="week-label" id="mgWLabel"></span>
+        <button class="week-arrow" id="mgWNext" onclick="mgShiftWeek(1)">→</button>
+      </div>
+      <div class="days-strip" id="mgDaysStrip"></div>
+      <div id="mgTimeSection"><div class="no-date" id="mgNoDate"></div></div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:20px">
+      <button onclick="showMgPhase(2)" class="btn-back show" id="mgRscBack"></button>
+      <button onclick="confirmReschedule()" class="btn-next" id="mgRscBtn" disabled></button>
+    </div>
+  </div>
+
 </div>
 
 <script>
 // ── i18n ──────────────────────────────────────────────────────────────────────
 const T = {
+  az: {
+    ps:     ['Xidmət','Usta','Tarix','Təsdiq'],
+    ey:     ['Addım 1/4','Addım 2/4','Addım 3/4','Addım 4/4'],
+    st:     ['Hansı xidmət?','Ustanı seçin','Tarix və vaxt','Rezervasiyanı təsdiqləyin'],
+    catCount: (n) => `${n} xidmət`,
+    svcDur: (n) => `${n} dəq`,
+    masterMeta: (sp, ex) => [sp, ex].filter(Boolean).join(' · '),
+    noDate: 'Mövcud saatları görmək üçün tarix seçin',
+    morning: 'Səhər', afternoon: 'Gündüz', evening: 'Axşam',
+    noSlots: 'Bu tarixdə boş yer yoxdur.',
+    sumLabels: ['Xidmət','Usta','Tarix','Vaxt','Cəmi'],
+    lName: 'Adınız', lPhone: 'Telefon nömrəsi', lNote: 'Qeyd (istəyə bağlı)',
+    phName: 'Ad və soyad', phPhone: '+994 XX XXX XX XX',
+    phNote: 'Allergiya, istəklər…',
+    hPhone: 'WhatsApp-a təsdiq mesajı göndəriləcək',
+    eName: 'Adınızı daxil edin', ePhone: 'Düzgün telefon nömrəsi daxil edin',
+    back: 'Geri', next: 'Davam et', book: 'Rezervasiya et',
+    doneTitle: 'Rezervasiya təsdiqləndi!', doneSub: 'WhatsApp-a təsdiq mesajı göndərildi.',
+    doneNote: '⏰ Görüşdən 24 saat əvvəl xatırlatma göndəriləcək.',
+    doneManage: '📋 Rezervasiyalarıma bax',
+    doneRowLabels: ['Xidmət','Usta','Tarix','Vaxt','Qiymət'],
+    errSlot: 'Bu vaxt artıq tutuldu. Başqa vaxt seçin.',
+    errGeneric: 'Xəta baş verdi. Yenidən cəhd edin.',
+    months: ['Yan','Fev','Mar','Apr','May','İyn','İyl','Avq','Sen','Okt','Noy','Dek'],
+    days: ['Bz','Çx','Çr','Cm','Cü','Şn','Bz'],
+    loading: 'Yüklənir…',
+    mgEyebrow: 'Mənim rezervasiyalarım',
+    mgTitle: 'Rezervasiyanızı tapın',
+    mgPhoneLbl: 'Telefon nömrəniz',
+    mgFind: 'Axtar',
+    mgBack: '← Geri',
+    mgNone: 'Aktiv rezervasiya tapılmadı.',
+    mgCancel: 'Ləğv et',
+    mgReschedule: 'Dəyiş',
+    mgCancelConfirm: 'Bu rezervasiyanı ləğv etmək istəyirsiniz?',
+    mgCancelOk: '✓ Rezervasiya ləğv edildi',
+    mgCancelErr: 'Xəta. Yenidən cəhd edin.',
+    mgRscEyebrow: 'Yeni vaxt seçin',
+    mgRscTitle: 'Rezervasiyanı dəyişdir',
+    mgRscSub: (sn, mn) => `${sn} — ${mn}`,
+    mgRscNoDate: 'Mövcud saatları görmək üçün tarix seçin',
+    mgRscConfirm: 'Dəyişdir',
+    mgRscSuccess: '✓ Rezervasiya dəyişdirildi!',
+    mgRscErr: 'Bu vaxt artıq tutuldu. Başqa vaxt seçin.',
+    mgDateLbl: (d) => d, mgTimeLbl: (t) => t,
+  },
   en: {
     ps:     ['Service','Master','Date & Time','Confirm'],
     ey:     ['Step 1 of 4','Step 2 of 4','Step 3 of 4','Step 4 of 4'],
@@ -271,13 +392,33 @@ const T = {
     eName: 'Please enter your name', ePhone: 'Please enter a valid phone number',
     back: 'Back', next: 'Continue', book: 'Book Appointment',
     doneTitle: "You're booked!", doneSub: 'A WhatsApp confirmation has been sent.',
-    doneNote: '⏰ You will receive a reminder 24 hours before your appointment.\nTo cancel or reschedule, message our WhatsApp bot.',
+    doneNote: '⏰ You will receive a reminder 24 hours before your appointment.',
+    doneManage: '📋 Manage my bookings',
     doneRowLabels: ['Service','Master','Date','Time','Price'],
     errSlot: 'This slot was just taken. Please choose another time.',
     errGeneric: 'Something went wrong. Please try again.',
     months: ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],
     days: ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'],
     loading: 'Loading…',
+    mgEyebrow: 'My bookings',
+    mgTitle: 'Find your booking',
+    mgPhoneLbl: 'Your phone number',
+    mgFind: 'Search',
+    mgBack: '← Back',
+    mgNone: 'No active bookings found.',
+    mgCancel: 'Cancel',
+    mgReschedule: 'Reschedule',
+    mgCancelConfirm: 'Cancel this booking?',
+    mgCancelOk: '✓ Booking cancelled',
+    mgCancelErr: 'Error. Please try again.',
+    mgRscEyebrow: 'Choose new time',
+    mgRscTitle: 'Reschedule booking',
+    mgRscSub: (sn, mn) => `${sn} with ${mn}`,
+    mgRscNoDate: 'Select a date to see available times',
+    mgRscConfirm: 'Confirm reschedule',
+    mgRscSuccess: '✓ Booking rescheduled!',
+    mgRscErr: 'That slot is no longer available. Please choose another.',
+    mgDateLbl: (d) => d, mgTimeLbl: (t) => t,
   },
   ru: {
     ps:     ['Услуга','Мастер','Дата и время','Подтверждение'],
@@ -297,33 +438,65 @@ const T = {
     eName: 'Введите ваше имя', ePhone: 'Введите корректный номер',
     back: 'Назад', next: 'Продолжить', book: 'Записаться',
     doneTitle: 'Запись подтверждена!', doneSub: 'Подтверждение отправлено в WhatsApp.',
-    doneNote: '⏰ Напоминание придёт за 24 часа.\nДля отмены или переноса напишите боту.',
+    doneNote: '⏰ Напоминание придёт за 24 часа.',
+    doneManage: '📋 Управление записями',
     doneRowLabels: ['Услуга','Мастер','Дата','Время','Цена'],
     errSlot: 'Этот слот только что заняли. Выберите другое время.',
     errGeneric: 'Ошибка. Попробуйте снова.',
     months: ['Янв','Фев','Мар','Апр','Май','Июн','Июл','Авг','Сен','Окт','Ноя','Дек'],
     days: ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'],
     loading: 'Загрузка…',
+    mgEyebrow: 'Мои записи',
+    mgTitle: 'Найти запись',
+    mgPhoneLbl: 'Ваш номер телефона',
+    mgFind: 'Найти',
+    mgBack: '← Назад',
+    mgNone: 'Активных записей не найдено.',
+    mgCancel: 'Отменить',
+    mgReschedule: 'Перенести',
+    mgCancelConfirm: 'Отменить эту запись?',
+    mgCancelOk: '✓ Запись отменена',
+    mgCancelErr: 'Ошибка. Попробуйте снова.',
+    mgRscEyebrow: 'Выберите новое время',
+    mgRscTitle: 'Перенос записи',
+    mgRscSub: (sn, mn) => `${sn} — ${mn}`,
+    mgRscNoDate: 'Выберите дату для просмотра времени',
+    mgRscConfirm: 'Подтвердить перенос',
+    mgRscSuccess: '✓ Запись перенесена!',
+    mgRscErr: 'Этот слот уже занят. Выберите другое время.',
+    mgDateLbl: (d) => d, mgTimeLbl: (t) => t,
   }
 };
 
 // ── State ─────────────────────────────────────────────────────────────────────
-let lang = 'en';
+let lang = 'az';
 let step = 0;
 let weekOffset = 0;
 let weekStart  = null;
+let manageMode = false;
 
-let appData     = null;   // from /api/data
+let appData     = null;
 let selectedCat = null;
-let selectedSvc = null;   // {id, name, price, duration}
-let selectedMst = null;   // {id, name, ...}
+let selectedSvc = null;
+let selectedMst = null;
 let selectedDate= null;
 let selectedTime= null;
-let availDates  = [];     // from /api/dates
-let availSlots  = [];     // from /api/slots
+let availDates  = [];
+let availSlots  = [];
 
-const urlParams     = new URLSearchParams(window.location.search);
-const prefilledPhone= urlParams.get('phone') || '';
+// Manage state
+let mgPhone      = '';
+let mgBookings   = [];
+let mgActiveBook = null;  // booking being rescheduled/cancelled
+let mgWeekOffset = 0;
+let mgWeekStart  = null;
+let mgAvailDates = [];
+let mgAvailSlots = [];
+let mgSelDate    = null;
+let mgSelTime    = null;
+
+const urlParams      = new URLSearchParams(window.location.search);
+const prefilledPhone = urlParams.get('phone') || '';
 
 // ── Language ──────────────────────────────────────────────────────────────────
 function setLang(l) {
@@ -333,11 +506,12 @@ function setLang(l) {
   );
   applyTranslations();
   if (appData) rerender();
+  if (manageMode) applyManageTranslations();
 }
 
 function t(key, ...args) {
   const v = T[lang][key];
-  return typeof v === 'function' ? v(...args) : v;
+  return typeof v === 'function' ? v(...args) : (v || '');
 }
 
 function applyTranslations() {
@@ -346,9 +520,256 @@ function applyTranslations() {
   tx.ey.forEach((s,i)  => { const el=document.getElementById('ey'+i); if(el) el.textContent=s; });
   tx.st.forEach((s,i)  => { const el=document.getElementById('st'+i); if(el) el.textContent=s; });
   document.getElementById('noDate').textContent = tx.noDate;
-  const btnBack = document.getElementById('btnBack');
-  if (btnBack) btnBack.textContent = step === 3 ? tx.book : tx.back;
   updateBottomBar();
+}
+
+function applyManageTranslations() {
+  document.getElementById('mgEyebrow').textContent  = t('mgEyebrow');
+  document.getElementById('mgTitle').textContent    = t('mgTitle');
+  document.getElementById('mgPhoneLbl').textContent = t('mgPhoneLbl');
+  document.getElementById('mgFindBtn').textContent  = t('mgFind');
+  document.getElementById('mgBackBtn').textContent  = t('mgBack');
+  document.getElementById('mgRscBack').textContent  = t('mgBack');
+  document.getElementById('mgRscBtn').textContent   = t('mgRscConfirm');
+  document.getElementById('mgRscEyebrow').textContent = t('mgRscEyebrow');
+  document.getElementById('mgRscTitle').textContent = t('mgRscTitle');
+  document.getElementById('mgNoDate').textContent   = t('mgRscNoDate');
+  document.getElementById('mgRscBtn').disabled = !(mgSelDate && mgSelTime);
+}
+
+// ── Manage toggle ─────────────────────────────────────────────────────────────
+function toggleManage() {
+  manageMode = !manageMode;
+  document.getElementById('manageBtn').classList.toggle('active', manageMode);
+  document.getElementById('progressBar').style.display = manageMode ? 'none' : '';
+  document.getElementById('bottomBar').style.display   = manageMode ? 'none' : '';
+  document.getElementById('manageView').classList.toggle('visible', manageMode);
+  ['s0','s1','s2','s3','sDone'].forEach(id => {
+    const el = document.getElementById(id);
+    if (manageMode) el.classList.remove('visible');
+  });
+  if (!manageMode) {
+    showStep(step);
+  } else {
+    applyManageTranslations();
+    // Pre-fill phone if available
+    if (prefilledPhone && !mgPhone) {
+      document.getElementById('mgPhoneInput').value = prefilledPhone;
+    }
+    showMgPhase(1);
+  }
+}
+
+function showMgPhase(p) {
+  document.getElementById('mgP1').style.display = p===1 ? '' : 'none';
+  document.getElementById('mgP2').style.display = p===2 ? '' : 'none';
+  document.getElementById('mgP3').style.display = p===3 ? '' : 'none';
+}
+
+// ── Find bookings ─────────────────────────────────────────────────────────────
+async function findBookings() {
+  const phone = document.getElementById('mgPhoneInput').value.trim();
+  if (!phone || phone.replace(/\D/g,'').length < 7) {
+    showToast(t('ePhone')); return;
+  }
+  mgPhone = phone;
+  showLoading(true);
+  try {
+    const r = await fetch(`/api/my-bookings?phone=${encodeURIComponent(phone)}`);
+    const d = await r.json();
+    mgBookings = d.bookings || [];
+  } catch(e) { mgBookings = []; }
+  showLoading(false);
+  renderMgBookings();
+  showMgPhase(2);
+}
+
+function renderMgBookings() {
+  const el = document.getElementById('mgBookingsList');
+  if (!mgBookings.length) {
+    el.innerHTML = `<div class="mg-empty">${t('mgNone')}</div>`;
+    return;
+  }
+  el.innerHTML = mgBookings.map((b,i) => {
+    const df = new Date(b.date+'T12:00:00').toLocaleDateString(
+      lang==='ru'?'ru-RU':'az-AZ', {weekday:'short',day:'numeric',month:'short'});
+    return `<div class="mg-booking-card">
+      <div class="mg-booking-id">Booking #${b.booking_id}</div>
+      <div class="mg-booking-row"><span class="mg-booking-label">💅</span><span class="mg-booking-val">${b.service_name}</span></div>
+      <div class="mg-booking-row"><span class="mg-booking-label">👩</span><span class="mg-booking-val">${b.master_name}</span></div>
+      <div class="mg-booking-row"><span class="mg-booking-label">📅</span><span class="mg-booking-val">${df} • ${b.time}</span></div>
+      <div class="mg-booking-row"><span class="mg-booking-label">💰</span><span class="mg-booking-val">${b.price} AZN</span></div>
+      <div class="mg-actions">
+        <button class="mg-btn-cancel" onclick="cancelBooking(${i})">${t('mgCancel')}</button>
+        <button class="mg-btn-rsc" onclick="startReschedule(${i})">${t('mgReschedule')}</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function cancelBooking(idx) {
+  const b = mgBookings[idx];
+  if (!confirm(t('mgCancelConfirm'))) return;
+  showLoading(true);
+  try {
+    const r = await fetch('/api/cancel-booking', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({phone: mgPhone, booking_id: b.booking_id})
+    });
+    showLoading(false);
+    if (r.ok) {
+      mgBookings.splice(idx, 1);
+      renderMgBookings();
+      showToast(t('mgCancelOk'));
+    } else {
+      showToast(t('mgCancelErr'));
+    }
+  } catch(e) { showLoading(false); showToast(t('mgCancelErr')); }
+}
+
+async function startReschedule(idx) {
+  mgActiveBook = mgBookings[idx];
+  mgSelDate = null; mgSelTime = null;
+  mgWeekOffset = 0;
+
+  // Update reschedule header
+  document.getElementById('mgRscSub').textContent =
+    t('mgRscSub', mgActiveBook.service_name, mgActiveBook.master_name);
+
+  showLoading(true);
+  try {
+    const r = await fetch(`/api/dates?master_id=${mgActiveBook.master_id}`);
+    const d = await r.json();
+    mgAvailDates = d.dates || [];
+  } catch(e) { mgAvailDates = []; }
+
+  const today = new Date(); today.setHours(0,0,0,0);
+  const day   = today.getDay();
+  mgWeekStart = new Date(today);
+  mgWeekStart.setDate(today.getDate() - (day===0 ? 6 : day-1));
+
+  showLoading(false);
+  applyManageTranslations();
+  renderMgWeek();
+  showMgPhase(3);
+}
+
+function mgShiftWeek(dir) {
+  mgWeekOffset += dir;
+  renderMgWeek();
+}
+
+function renderMgWeek() {
+  const ws = new Date(mgWeekStart);
+  ws.setDate(ws.getDate() + mgWeekOffset * 7);
+  const we = new Date(ws); we.setDate(we.getDate() + 6);
+  const mx = T[lang].months;
+  document.getElementById('mgWLabel').textContent =
+    `${mx[ws.getMonth()]} ${ws.getDate()} – ${mx[we.getMonth()]} ${we.getDate()}`;
+  document.getElementById('mgWPrev').disabled = mgWeekOffset <= 0;
+  document.getElementById('mgWNext').disabled = mgWeekOffset >= 3;
+
+  const avail = new Set(mgAvailDates);
+  const today = new Date(); today.setHours(0,0,0,0);
+  const dns   = T[lang].days;
+  let html = '';
+  for (let i = 0; i < 7; i++) {
+    const d   = new Date(ws); d.setDate(ws.getDate() + i);
+    const iso = d.toISOString().split('T')[0];
+    const past = d < today;
+    const ok   = !past && avail.has(iso);
+    const isSel = mgSelDate === iso;
+    let cls = 'day';
+    if (past)       cls += ' past';
+    else if (isSel) cls += ' sel avail';
+    else if (ok)    cls += ' avail';
+    else            cls += ' unavail';
+    html += `<div class="${cls}" ${ok||isSel ? `onclick="mgSelectDate('${iso}')"` : ''}>
+      <div class="day-name">${dns[i]}</div>
+      <div class="day-num">${d.getDate()}</div>
+    </div>`;
+  }
+  document.getElementById('mgDaysStrip').innerHTML = html;
+}
+
+async function mgSelectDate(iso) {
+  mgSelDate = iso; mgSelTime = null;
+  renderMgWeek();
+  document.getElementById('mgTimeSection').innerHTML = `<div class="mini-spinner"></div>`;
+  document.getElementById('mgRscBtn').disabled = true;
+  try {
+    const r = await fetch(`/api/slots?master_id=${mgActiveBook.master_id}&service_id=${mgActiveBook.service_id}&date=${iso}`);
+    const d = await r.json();
+    mgAvailSlots = d.slots || [];
+  } catch(e) { mgAvailSlots = []; }
+  renderMgSlots();
+}
+
+function renderMgSlots() {
+  const morning   = mgAvailSlots.filter(s => parseInt(s) < 12);
+  const afternoon = mgAvailSlots.filter(s => parseInt(s) >= 12 && parseInt(s) < 17);
+  const evening   = mgAvailSlots.filter(s => parseInt(s) >= 17);
+  if (!mgAvailSlots.length) {
+    document.getElementById('mgTimeSection').innerHTML =
+      `<p style="color:var(--stone);font-size:13px;font-style:italic">${t('noSlots')}</p>`;
+    return;
+  }
+  const groups = [
+    { label: t('morning'),   slots: morning   },
+    { label: t('afternoon'), slots: afternoon },
+    { label: t('evening'),   slots: evening   },
+  ].filter(g => g.slots.length);
+
+  document.getElementById('mgTimeSection').innerHTML = groups.map(g => `
+    <div class="time-group">
+      <div class="tg-label">${g.label}</div>
+      <div class="time-grid">
+        ${g.slots.map(s => `<div class="slot ${mgSelTime===s?'sel':''}" onclick="mgSelectTime('${s}')">${s}</div>`).join('')}
+      </div>
+    </div>
+  `).join('');
+}
+
+function mgSelectTime(s) {
+  mgSelTime = s;
+  renderMgSlots();
+  document.getElementById('mgRscBtn').disabled = false;
+}
+
+async function confirmReschedule() {
+  if (!mgSelDate || !mgSelTime) return;
+  showLoading(true);
+  try {
+    const r = await fetch('/api/reschedule-booking', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        phone: mgPhone, booking_id: mgActiveBook.booking_id,
+        new_date: mgSelDate, new_time: mgSelTime
+      })
+    });
+    showLoading(false);
+    if (r.ok) {
+      showToast(t('mgRscSuccess'));
+      // Refresh booking list
+      await findBookingsRefresh();
+      showMgPhase(2);
+    } else if (r.status === 409) {
+      showToast(t('mgRscErr'));
+      mgSelTime = null;
+      renderMgSlots();
+    } else {
+      showToast(t('errGeneric'));
+    }
+  } catch(e) { showLoading(false); showToast(t('errGeneric')); }
+}
+
+async function findBookingsRefresh() {
+  try {
+    const r = await fetch(`/api/my-bookings?phone=${encodeURIComponent(mgPhone)}`);
+    const d = await r.json();
+    mgBookings = d.bookings || [];
+    renderMgBookings();
+  } catch(e) {}
 }
 
 // ── Load data from API ────────────────────────────────────────────────────────
@@ -456,10 +877,8 @@ function renderCategories() {
 }
 
 function selectCat(cat) {
-  selectedCat = cat;
-  selectedSvc = null;
-  renderCategories();
-  renderServices(cat);
+  selectedCat = cat; selectedSvc = null;
+  renderCategories(); renderServices(cat);
   document.getElementById('svcList').style.display = 'block';
   updateBottomBar();
 }
@@ -485,15 +904,11 @@ function selectSvc(id) {
   const s = appData.services.find(x => x.id === id);
   if (!s) return;
   selectedSvc = { ...s, duration: appData.durations[id] || 60 };
-  renderServices(selectedCat);
-  updateBottomBar();
+  renderServices(selectedCat); updateBottomBar();
 }
 
 // ── STEP 1: Masters ───────────────────────────────────────────────────────────
-async function loadMasters() {
-  // Masters are already in appData; just render
-  renderMasters();
-}
+async function loadMasters() { renderMasters(); }
 
 function renderMasters() {
   if (!appData) return;
@@ -515,8 +930,7 @@ function renderMasters() {
 
 function selectMst(id) {
   selectedMst = appData.masters.find(m => m.id === id);
-  renderMasters();
-  updateBottomBar();
+  renderMasters(); updateBottomBar();
 }
 
 // ── STEP 2: Calendar ──────────────────────────────────────────────────────────
@@ -526,10 +940,7 @@ async function initCalendar() {
   weekStart   = new Date(today);
   weekStart.setDate(today.getDate() - (day === 0 ? 6 : day - 1));
   weekOffset  = 0;
-  selectedDate = null;
-  selectedTime = null;
-
-  // Fetch available dates for this master
+  selectedDate = null; selectedTime = null;
   showLoading(true);
   try {
     const r = await fetch(`/api/dates?master_id=${selectedMst.id}`);
@@ -540,10 +951,7 @@ async function initCalendar() {
   renderWeek();
 }
 
-function shiftWeek(dir) {
-  weekOffset += dir;
-  renderWeek();
-}
+function shiftWeek(dir) { weekOffset += dir; renderWeek(); }
 
 function renderWeek() {
   const ws = new Date(weekStart);
@@ -558,7 +966,7 @@ function renderWeek() {
   const avail = new Set(availDates);
   const today = new Date(); today.setHours(0,0,0,0);
   const dns   = T[lang].days;
-  let html    = '';
+  let html = '';
   for (let i = 0; i < 7; i++) {
     const d   = new Date(ws); d.setDate(ws.getDate() + i);
     const iso = d.toISOString().split('T')[0];
@@ -579,8 +987,7 @@ function renderWeek() {
 }
 
 async function selectDate(iso) {
-  selectedDate = iso;
-  selectedTime = null;
+  selectedDate = iso; selectedTime = null;
   renderWeek();
   document.getElementById('timeSection').innerHTML = `<div class="mini-spinner"></div>`;
   try {
@@ -588,8 +995,7 @@ async function selectDate(iso) {
     const d = await r.json();
     availSlots = d.slots || [];
   } catch(e) { availSlots = []; }
-  renderSlots();
-  updateBottomBar();
+  renderSlots(); updateBottomBar();
 }
 
 function renderSlots() {
@@ -606,7 +1012,6 @@ function renderSlots() {
     { label: t('afternoon'), slots: afternoon },
     { label: t('evening'),   slots: evening   },
   ].filter(g => g.slots.length);
-
   document.getElementById('timeSection').innerHTML = groups.map(g => `
     <div class="time-group">
       <div class="tg-label">${g.label}</div>
@@ -617,16 +1022,12 @@ function renderSlots() {
   `).join('');
 }
 
-function selectTime(t_) {
-  selectedTime = t_;
-  renderSlots();
-  updateBottomBar();
-}
+function selectTime(t_) { selectedTime = t_; renderSlots(); updateBottomBar(); }
 
 // ── STEP 3: Checkout ──────────────────────────────────────────────────────────
 function renderCheckout() {
   const df = new Date(selectedDate+'T12:00:00').toLocaleDateString(
-    lang==='en'?'en-GB':'ru-RU', {weekday:'short',day:'numeric',month:'short'}
+    lang==='ru'?'ru-RU':'az-AZ', {weekday:'short',day:'numeric',month:'short'}
   );
   const labels = t('sumLabels');
   document.getElementById('summary').innerHTML = [
@@ -651,28 +1052,23 @@ function renderCheckout() {
   if (prefilledPhone) document.getElementById('iPhone').value = prefilledPhone;
 }
 
-// ── Submit ─────────────────────────────────────────────────────────────────────
+// ── Submit ────────────────────────────────────────────────────────────────────
 async function submitBooking() {
   const name  = document.getElementById('iName').value.trim();
   const phone = document.getElementById('iPhone').value.trim();
   let ok = true;
-
   document.getElementById('iName').classList.toggle('err', !name);
   document.getElementById('eName').classList.toggle('show', !name);
   if (!name) ok = false;
-
   const phoneOk = phone.replace(/\D/g,'').length >= 7;
   document.getElementById('iPhone').classList.toggle('err', !phoneOk);
   document.getElementById('ePhone').classList.toggle('show', !phoneOk);
   if (!phoneOk) ok = false;
-
   if (!ok) return;
-
   showLoading(true);
   try {
     const resp = await fetch('/api/book', {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
+      method: 'POST', headers: {'Content-Type':'application/json'},
       body: JSON.stringify({
         name, phone,
         note:       document.getElementById('iNote').value.trim(),
@@ -687,15 +1083,11 @@ async function submitBooking() {
       const data = await resp.json();
       showDone(data.booking_id);
     } else if (resp.status === 409) {
-      showToast(t('errSlot'));
-      showStep(2);
+      showToast(t('errSlot')); showStep(2);
     } else {
       showToast(t('errGeneric'));
     }
-  } catch(e) {
-    showLoading(false);
-    showToast(t('errGeneric'));
-  }
+  } catch(e) { showLoading(false); showToast(t('errGeneric')); }
 }
 
 // ── Confirmation ──────────────────────────────────────────────────────────────
@@ -704,8 +1096,9 @@ function renderDone(bookingId) {
   document.getElementById('doneSub').textContent   = t('doneSub');
   document.getElementById('doneNote').textContent  = t('doneNote');
   document.getElementById('doneId').textContent    = 'Booking ID: #' + bookingId;
+  document.getElementById('doneManageBtn').textContent = t('doneManage');
   const df = new Date(selectedDate+'T12:00:00').toLocaleDateString(
-    lang==='en'?'en-GB':'ru-RU', {weekday:'long',day:'numeric',month:'long'}
+    lang==='ru'?'ru-RU':'az-AZ', {weekday:'long',day:'numeric',month:'long'}
   );
   const labels = t('doneRowLabels');
   document.getElementById('doneDetails').innerHTML = [
@@ -720,13 +1113,10 @@ function renderDone(bookingId) {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-function showLoading(v) {
-  document.getElementById('loading').classList.toggle('show', v);
-}
+function showLoading(v) { document.getElementById('loading').classList.toggle('show', v); }
 function showToast(msg) {
   const t_ = document.getElementById('toast');
-  t_.textContent = msg;
-  t_.classList.add('show');
+  t_.textContent = msg; t_.classList.add('show');
   setTimeout(() => t_.classList.remove('show'), 3500);
 }
 

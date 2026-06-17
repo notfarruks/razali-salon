@@ -279,6 +279,30 @@ def fetch_all_bookings(phone: str) -> list:
         log("error", "fetch_all_bookings failed", error=str(e))
         return []
 
+def fetch_booking_by_id(phone: str, booking_id: str) -> dict:
+    try:
+        db    = get_sheets().open("RAZALI_DB")
+        rows  = db.worksheet("Bookings").get_all_records()
+        today = datetime.now().strftime("%Y-%m-%d")
+        for i, b in enumerate(rows, 2):
+            cp = str(b.get("phone","")).replace("whatsapp:","").strip()
+            up = phone.replace("whatsapp:","").strip()
+            if (cp == up and
+                str(b.get("id")) == booking_id and
+                str(b.get("status")) == "Confirmed" and
+                str(b.get("date")) >= today):
+                return {"found": True, "row": i,
+                        "booking_id": str(b.get("id")),
+                        "master_id":  str(b.get("master_id")),
+                        "service_id": str(b.get("service_id")),
+                        "date": str(b.get("date")),
+                        "time": str(b.get("time")),
+                        "customer_name": str(b.get("customer_name"))}
+        return {"found": False}
+    except Exception as e:
+        log("error", "fetch_booking_by_id failed", error=str(e))
+        return {"found": False}
+
 # ─── Notifications ────────────────────────────────────────────────────────────
 async def telegram(msg: str):
     if not TELEGRAM_TOKEN or not TELEGRAM_CHAT:
@@ -333,6 +357,16 @@ def reschedule_alert(bid, name, phone, mid, sid, old_d, old_t, new_d, new_t):
             f"✅ {datetime.strptime(new_d,'%Y-%m-%d').strftime('%d %b')} {new_t}\n"
             f"━━━━━━━━━━━━━━━━━━")
 
+async def refresh_loop():
+    """Reload masters/services/blocked dates from Sheets every 10 minutes."""
+    while True:
+        await asyncio.sleep(600)
+        try:
+            await asyncio.get_event_loop().run_in_executor(executor, load_data)
+            log("info", "Data auto-refreshed")
+        except Exception as e:
+            log("error", "refresh_loop error", error=str(e))
+
 # ─── Reminder loop ────────────────────────────────────────────────────────────
 async def reminder_loop():
     while True:
@@ -370,6 +404,7 @@ async def on_startup():
     log("info", "RAZALI starting up")
     load_data()
     asyncio.create_task(reminder_loop())
+    asyncio.create_task(refresh_loop())
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # API ENDPOINTS
@@ -497,6 +532,75 @@ async def api_book(req: BookingRequest):
 
     log("info", "Booking confirmed via web", id=bid, phone=wa_phone[-6:])
     return JSONResponse({"booking_id": bid})
+
+# ── GET /api/my-bookings ───────────────────────────────────────────────────────
+@app.get("/api/my-bookings")
+async def api_my_bookings(phone: str):
+    clean = phone.strip().replace(" ", "").replace("-", "")
+    if not clean.startswith("+"): clean = "+" + clean
+    wa_phone = "whatsapp:" + clean
+    bookings = await asyncio.get_event_loop().run_in_executor(
+        executor, fetch_all_bookings, wa_phone)
+    result = []
+    for b in bookings:
+        result.append({**b,
+            "master_name":  MASTERS.get(b["master_id"], {}).get("name", b["master_id"]),
+            "service_name": SERVICES.get(b["service_id"], {}).get("name", b["service_id"]),
+            "price":        SERVICES.get(b["service_id"], {}).get("price", 0),
+        })
+    return JSONResponse({"bookings": result})
+
+# ── POST /api/cancel-booking ───────────────────────────────────────────────────
+class CancelWebRequest(BaseModel):
+    phone:      str
+    booking_id: str
+
+@app.post("/api/cancel-booking")
+async def api_cancel_booking(req: CancelWebRequest):
+    clean = req.phone.strip().replace(" ", "").replace("-", "")
+    if not clean.startswith("+"): clean = "+" + clean
+    wa_phone = "whatsapp:" + clean
+    b = await asyncio.get_event_loop().run_in_executor(
+        executor, fetch_booking_by_id, wa_phone, req.booking_id)
+    if not b.get("found"):
+        raise HTTPException(404, "Booking not found")
+    ok = await asyncio.get_event_loop().run_in_executor(executor, cancel_booking, b["row"])
+    if ok:
+        asyncio.create_task(telegram(cancel_alert(
+            b["booking_id"], b["customer_name"], wa_phone,
+            b["master_id"], b["service_id"], b["date"], b["time"]
+        )))
+    return JSONResponse({"success": ok})
+
+# ── POST /api/reschedule-booking ───────────────────────────────────────────────
+class RescheduleWebRequest(BaseModel):
+    phone:      str
+    booking_id: str
+    new_date:   str
+    new_time:   str
+
+@app.post("/api/reschedule-booking")
+async def api_reschedule_booking(req: RescheduleWebRequest):
+    clean = req.phone.strip().replace(" ", "").replace("-", "")
+    if not clean.startswith("+"): clean = "+" + clean
+    wa_phone = "whatsapp:" + clean
+    b = await asyncio.get_event_loop().run_in_executor(
+        executor, fetch_booking_by_id, wa_phone, req.booking_id)
+    if not b.get("found"):
+        raise HTTPException(404, "Booking not found")
+    slots = await asyncio.get_event_loop().run_in_executor(
+        executor, get_slots, b["master_id"], b["service_id"], req.new_date)
+    if req.new_time not in slots:
+        raise HTTPException(409, "Slot not available")
+    ok = await asyncio.get_event_loop().run_in_executor(
+        executor, reschedule_booking, b["row"], req.new_date, req.new_time)
+    if ok:
+        asyncio.create_task(telegram(reschedule_alert(
+            b["booking_id"], b["customer_name"], wa_phone,
+            b["master_id"], b["service_id"],
+            b["date"], b["time"], req.new_date, req.new_time
+        )))
+    return JSONResponse({"success": ok})
 
 # ── GET /book — serve the HTML page ───────────────────────────────────────────
 @app.get("/book", response_class=HTMLResponse)

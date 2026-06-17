@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RAZALI — Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --charcoal: #1C1C1A;
+    --cream: #F5F0EA;
+    --gold: #C9A96E;
+    --gold-dark: #A8864F;
+    --mid: #2E2E2B;
+    --mid2: #252523;
+    --border: rgba(201,169,110,0.15);
+    --text-muted: #888880;
+  }
+
+  html, body {
+    height: 100%;
+    background: var(--charcoal);
+    color: var(--cream);
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── PASSWORD SCREEN ── */
+  #pw-screen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 24px;
+  }
+
+  .pw-card {
+    background: var(--mid);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 48px 40px;
+    width: 100%;
+    max-width: 380px;
+    text-align: center;
+  }
+
+  .pw-eyebrow {
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 12px;
+  }
+
+  .pw-logo {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 32px;
+    font-weight: 300;
+    letter-spacing: 0.2em;
+    color: var(--cream);
+    margin-bottom: 36px;
+  }
+
+  .pw-input {
+    width: 100%;
+    background: var(--charcoal);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 12px 16px;
+    color: var(--cream);
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    outline: none;
+    margin-bottom: 12px;
+    transition: border-color 0.2s;
+    text-align: center;
+    letter-spacing: 0.1em;
+  }
+
+  .pw-input:focus {
+    border-color: var(--gold);
+  }
+
+  .pw-btn {
+    width: 100%;
+    background: var(--gold);
+    color: var(--charcoal);
+    border: none;
+    border-radius: 3px;
+    padding: 12px;
+    font-family: 'Inter', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: background 0.2s;
+    margin-bottom: 16px;
+  }
+
+  .pw-btn:hover { background: var(--gold-dark); }
+  .pw-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .pw-error {
+    font-size: 12px;
+    color: #e07070;
+    min-height: 18px;
+  }
+
+  /* ── ADMIN VIEW ── */
+  #admin-view {
+    display: none;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* Top bar */
+  .admin-topbar {
+    background: var(--mid);
+    border-bottom: 1px solid var(--border);
+    padding: 0 20px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+  }
+
+  .topbar-logo {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 18px;
+    font-weight: 300;
+    letter-spacing: 0.2em;
+    color: var(--cream);
+  }
+
+  .topbar-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .refresh-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--cream);
+    font-family: 'Inter', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 7px 16px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: border-color 0.2s, color 0.2s;
+  }
+
+  .refresh-btn:hover {
+    border-color: var(--gold);
+    color: var(--gold);
+  }
+
+  /* Date nav bar */
+  .date-nav {
+    background: var(--charcoal);
+    border-bottom: 1px solid var(--border);
+    padding: 0 20px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    flex-shrink: 0;
+    position: relative;
+  }
+
+  .nav-arrow {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    cursor: pointer;
+    padding: 8px 20px;
+    transition: color 0.2s;
+    white-space: nowrap;
+  }
+
+  .nav-arrow:hover { color: var(--gold); }
+
+  .date-label {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 19px;
+    font-weight: 400;
+    color: var(--cream);
+    min-width: 260px;
+    text-align: center;
+  }
+
+  /* Calendar area */
+  .calendar-wrap {
+    flex: 1;
+    overflow: auto;
+    position: relative;
+  }
+
+  .calendar-inner {
+    min-width: 600px;
+    padding: 0;
+  }
+
+  /* Master header row */
+  .cal-header {
+    display: grid;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: var(--mid2);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .time-col-header {
+    width: 68px;
+    min-width: 68px;
+    flex-shrink: 0;
+  }
+
+  .master-header {
+    padding: 14px 8px;
+    text-align: center;
+    border-left: 1px solid var(--border);
+  }
+
+  .master-avatar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    background: var(--gold);
+    color: var(--charcoal);
+    border-radius: 50%;
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 6px;
+  }
+
+  .master-name {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--cream);
+    line-height: 1.3;
+  }
+
+  /* Grid body */
+  .cal-body {
+    display: grid;
+    position: relative;
+  }
+
+  /* Time rows */
+  .time-rows {
+    display: contents;
+  }
+
+  /* Outer grid wrapper */
+  .cal-grid-outer {
+    display: flex;
+  }
+
+  .time-labels {
+    width: 68px;
+    min-width: 68px;
+    flex-shrink: 0;
+    display: grid;
+  }
+
+  .time-label {
+    height: 48px;
+    display: flex;
+    align-items: flex-start;
+    padding-top: 4px;
+    padding-right: 10px;
+    justify-content: flex-end;
+    font-size: 11px;
+    color: var(--text-muted);
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+
+  .time-label.half {
+    color: transparent;
+    border-bottom: 1px solid rgba(255,255,255,0.02);
+  }
+
+  .masters-columns {
+    flex: 1;
+    display: grid;
+    position: relative;
+  }
+
+  .master-column {
+    border-left: 1px solid var(--border);
+    position: relative;
+    min-height: 1056px; /* 22 slots * 48px */
+  }
+
+  .slot-row {
+    height: 48px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+
+  .slot-row.half {
+    border-bottom: 1px dashed rgba(255,255,255,0.02);
+  }
+
+  /* Booking cards */
+  .booking-card {
+    position: absolute;
+    left: 4px;
+    right: 4px;
+    background: var(--gold);
+    color: var(--charcoal);
+    border-radius: 3px;
+    padding: 6px 8px;
+    overflow: hidden;
+    cursor: default;
+    z-index: 2;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    transition: transform 0.1s;
+  }
+
+  .booking-card:hover {
+    transform: scale(1.01);
+    z-index: 5;
+  }
+
+  .card-name {
+    font-weight: 700;
+    font-size: 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.3;
+  }
+
+  .card-service {
+    font-size: 11px;
+    opacity: 0.8;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.3;
+  }
+
+  .card-time {
+    font-size: 10px;
+    opacity: 0.7;
+    margin-top: 2px;
+  }
+
+  /* Empty state */
+  .empty-state {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 80px 24px;
+    text-align: center;
+    color: var(--text-muted);
+  }
+
+  .empty-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+    opacity: 0.5;
+  }
+
+  .empty-text {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 22px;
+    font-weight: 300;
+    color: var(--text-muted);
+  }
+
+  /* Loading */
+  .loading-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(28,28,26,0.8);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    color: var(--gold);
+    letter-spacing: 0.1em;
+  }
+</style>
+</head>
+<body>
+
+<!-- PASSWORD SCREEN -->
+<div id="pw-screen">
+  <div class="pw-card">
+    <div class="pw-eyebrow">Admin Access</div>
+    <div class="pw-logo">RAZALI</div>
+    <input type="password" id="pw-input" class="pw-input" placeholder="Password" autocomplete="current-password">
+    <button class="pw-btn" id="pw-btn" onclick="tryLogin()">Enter</button>
+    <div class="pw-error" id="pw-error"></div>
+  </div>
+</div>
+
+<!-- LOADING OVERLAY -->
+<div class="loading-overlay" id="loading">Loading&hellip;</div>
+
+<!-- ADMIN VIEW -->
+<div id="admin-view">
+  <!-- Top bar -->
+  <div class="admin-topbar">
+    <div class="topbar-logo">RAZALI</div>
+    <div class="topbar-right">
+      <span id="booking-count" style="font-size:12px;color:var(--text-muted);"></span>
+      <button class="refresh-btn" onclick="loadDay()">&#8635; Refresh</button>
+    </div>
+  </div>
+
+  <!-- Date nav -->
+  <div class="date-nav">
+    <button class="nav-arrow" onclick="changeDay(-1)">&#8592; Yesterday</button>
+    <div class="date-label" id="date-label">—</div>
+    <button class="nav-arrow" onclick="changeDay(1)">Tomorrow &#8594;</button>
+  </div>
+
+  <!-- Calendar body -->
+  <div class="calendar-wrap" id="calendar-wrap">
+    <div class="calendar-inner" id="calendar-inner">
+      <!-- Rendered by JS -->
+    </div>
+    <div class="empty-state" id="empty-state">
+      <div class="empty-icon">📅</div>
+      <div class="empty-text">No appointments today</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── CONFIG ──────────────────────────────────────────────────────────────────
+const SLOT_HEIGHT = 48; // px per 30-min slot
+const DAY_START   = 9;  // 09:00
+const DAY_END     = 20; // 20:00
+const TOTAL_SLOTS = (DAY_END - DAY_START) * 2; // 22 slots
+
+// ── STATE ────────────────────────────────────────────────────────────────────
+let password = sessionStorage.getItem('razali_admin_pw') || '';
+let currentDate = todayStr();
+
+function todayStr() {
+  const d = new Date();
+  return d.getFullYear() + '-' +
+    String(d.getMonth()+1).padStart(2,'0') + '-' +
+    String(d.getDate()).padStart(2,'0');
+}
+
+function formatDateLabel(dateStr) {
+  const d = new Date(dateStr + 'T12:00:00');
+  return d.toLocaleDateString('en-GB', {weekday:'long', day:'numeric', month:'short', year:'numeric'});
+}
+
+function addDays(dateStr, n) {
+  const d = new Date(dateStr + 'T12:00:00');
+  d.setDate(d.getDate() + n);
+  return d.getFullYear() + '-' +
+    String(d.getMonth()+1).padStart(2,'0') + '-' +
+    String(d.getDate()).padStart(2,'0');
+}
+
+function timeToSlotIndex(timeStr) {
+  // e.g. "10:30" → slot index from DAY_START
+  const [h, m] = timeStr.split(':').map(Number);
+  return (h - DAY_START) * 2 + (m >= 30 ? 1 : 0);
+}
+
+// ── PASSWORD / LOGIN ─────────────────────────────────────────────────────────
+async function tryLogin() {
+  const pw = document.getElementById('pw-input').value.trim();
+  if (!pw) return;
+  document.getElementById('pw-btn').disabled = true;
+  document.getElementById('pw-error').textContent = '';
+  setLoading(true);
+  try {
+    const res = await fetch(`/api/admin/today?pw=${encodeURIComponent(pw)}&date=${currentDate}`);
+    if (res.status === 403) {
+      document.getElementById('pw-error').textContent = 'Incorrect password';
+      document.getElementById('pw-btn').disabled = false;
+      setLoading(false);
+      return;
+    }
+    if (!res.ok) throw new Error('Server error');
+    const data = await res.json();
+    password = pw;
+    sessionStorage.setItem('razali_admin_pw', pw);
+    showAdminView(data);
+    setLoading(false);
+  } catch (e) {
+    document.getElementById('pw-error').textContent = 'Connection error. Try again.';
+    document.getElementById('pw-btn').disabled = false;
+    setLoading(false);
+  }
+}
+
+document.getElementById('pw-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') tryLogin();
+});
+
+// Auto-login if password in sessionStorage
+window.addEventListener('load', () => {
+  if (password) {
+    setLoading(true);
+    fetch(`/api/admin/today?pw=${encodeURIComponent(password)}&date=${currentDate}`)
+      .then(r => {
+        if (r.status === 403) { sessionStorage.removeItem('razali_admin_pw'); password = ''; setLoading(false); return null; }
+        return r.json();
+      })
+      .then(data => { if (data) { showAdminView(data); setLoading(false); } })
+      .catch(() => setLoading(false));
+  }
+});
+
+// ── NAVIGATION ───────────────────────────────────────────────────────────────
+function changeDay(n) {
+  currentDate = addDays(currentDate, n);
+  loadDay();
+}
+
+async function loadDay() {
+  if (!password) return;
+  setLoading(true);
+  try {
+    const res = await fetch(`/api/admin/today?pw=${encodeURIComponent(password)}&date=${currentDate}`);
+    if (!res.ok) throw new Error('Failed');
+    const data = await res.json();
+    renderCalendar(data);
+    setLoading(false);
+  } catch (e) {
+    setLoading(false);
+  }
+}
+
+// ── SHOW ADMIN VIEW ───────────────────────────────────────────────────────────
+function showAdminView(data) {
+  document.getElementById('pw-screen').style.display = 'none';
+  document.getElementById('admin-view').style.display = 'flex';
+  renderCalendar(data);
+}
+
+// ── RENDER CALENDAR ───────────────────────────────────────────────────────────
+function renderCalendar(data) {
+  currentDate = data.date;
+  document.getElementById('date-label').textContent = '📅 ' + formatDateLabel(data.date);
+
+  const bookings = data.bookings || [];
+  const masters  = data.masters  || [];
+
+  const count = bookings.length;
+  document.getElementById('booking-count').textContent =
+    count === 0 ? 'No bookings' : count + (count === 1 ? ' booking' : ' bookings');
+
+  const inner   = document.getElementById('calendar-inner');
+  const emptyEl = document.getElementById('empty-state');
+
+  if (bookings.length === 0) {
+    inner.innerHTML = '';
+    emptyEl.style.display = 'flex';
+    return;
+  }
+
+  emptyEl.style.display = 'none';
+
+  // Determine which masters have bookings (show all masters from API)
+  const activeMasterIds = [...new Set(bookings.map(b => b.master_id))];
+  const shownMasters = masters.length > 0
+    ? masters.filter(m => activeMasterIds.includes(m.id))
+    : activeMasterIds.map(id => ({ id, name: id, initials: id.slice(0,2).toUpperCase() }));
+
+  const numMasters = shownMasters.length;
+
+  // Build HTML
+  let html = '';
+
+  // ── Header row ──
+  const colDef = `68px repeat(${numMasters}, 1fr)`;
+  html += `<div class="cal-header" style="grid-template-columns:${colDef};">`;
+  html += `<div class="time-col-header"></div>`;
+  shownMasters.forEach(m => {
+    html += `<div class="master-header">
+      <div class="master-avatar">${escHtml(m.initials)}</div>
+      <div class="master-name">${escHtml(m.name)}</div>
+    </div>`;
+  });
+  html += `</div>`;
+
+  // ── Body ──
+  html += `<div class="cal-grid-outer">`;
+
+  // Time labels
+  html += `<div class="time-labels">`;
+  for (let s = 0; s < TOTAL_SLOTS; s++) {
+    const h = DAY_START + Math.floor(s / 2);
+    const m = s % 2 === 0 ? '00' : '30';
+    const isHalf = s % 2 !== 0;
+    html += `<div class="time-label${isHalf ? ' half' : ''}">${!isHalf ? String(h).padStart(2,'0') + ':' + m : ''}</div>`;
+  }
+  html += `</div>`;
+
+  // Master columns
+  html += `<div class="masters-columns" style="grid-template-columns:repeat(${numMasters},1fr);">`;
+
+  shownMasters.forEach(master => {
+    html += `<div class="master-column" style="position:relative;">`;
+
+    // Background slot rows
+    for (let s = 0; s < TOTAL_SLOTS; s++) {
+      html += `<div class="slot-row${s % 2 !== 0 ? ' half' : ''}"></div>`;
+    }
+
+    // Booking cards for this master
+    const masterBookings = bookings.filter(b => b.master_id === master.id);
+    masterBookings.forEach(b => {
+      const slotIdx  = timeToSlotIndex(b.time);
+      const topPx    = slotIdx * SLOT_HEIGHT;
+      const durSlots = Math.max(1, Math.round(b.duration / 30));
+      const heightPx = durSlots * SLOT_HEIGHT - 4;
+
+      const endH = parseInt(b.time.split(':')[0]) + Math.floor(b.duration / 60);
+      const endM = (parseInt(b.time.split(':')[1]) + b.duration) % 60;
+      const endTime = String(endH).padStart(2,'0') + ':' + String(endM).padStart(2,'0');
+
+      html += `<div class="booking-card" style="top:${topPx + 2}px;height:${heightPx}px;">
+        <div class="card-name">${escHtml(b.customer_name)}</div>
+        <div class="card-service">${escHtml(b.service_name)}</div>
+        <div class="card-time">${escHtml(b.time)} – ${endTime}</div>
+      </div>`;
+    });
+
+    html += `</div>`; // master-column
+  });
+
+  html += `</div>`; // masters-columns
+  html += `</div>`; // cal-grid-outer
+
+  inner.innerHTML = html;
+}
+
+// ── HELPERS ───────────────────────────────────────────────────────────────────
+function setLoading(show) {
+  document.getElementById('loading').style.display = show ? 'flex' : 'none';
+}
+
+function escHtml(str) {
+  return String(str)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>

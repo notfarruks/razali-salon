@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RAZALI — Smart Salon Booking</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --charcoal: #1C1C1A;
+    --cream: #F5F0EA;
+    --gold: #C9A96E;
+    --gold-dark: #A8864F;
+    --mid: #2E2E2B;
+    --text-muted: #888880;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--charcoal);
+    color: var(--cream);
+    font-family: 'Inter', sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── HEADER ── */
+  header {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(28, 28, 26, 0.95);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(201, 169, 110, 0.15);
+    padding: 0 5vw;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 64px;
+  }
+
+  .logo {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 22px;
+    font-weight: 300;
+    letter-spacing: 0.25em;
+    color: var(--cream);
+    text-decoration: none;
+  }
+
+  .logo span {
+    color: var(--gold);
+  }
+
+  .btn-gold {
+    display: inline-block;
+    background: var(--gold);
+    color: var(--charcoal);
+    font-family: 'Inter', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    text-decoration: none;
+    padding: 10px 22px;
+    border-radius: 2px;
+    transition: background 0.2s, transform 0.15s;
+    border: none;
+    cursor: pointer;
+  }
+
+  .btn-gold:hover {
+    background: var(--gold-dark);
+    transform: translateY(-1px);
+  }
+
+  /* ── HERO ── */
+  .hero {
+    min-height: 92vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 80px 5vw 80px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: radial-gradient(ellipse at 70% 50%, rgba(201,169,110,0.06) 0%, transparent 65%);
+    pointer-events: none;
+  }
+
+  .hero-eyebrow {
+    font-family: 'Inter', sans-serif;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 28px;
+  }
+
+  .hero h1 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: clamp(38px, 7vw, 82px);
+    font-weight: 300;
+    line-height: 1.1;
+    color: var(--cream);
+    max-width: 700px;
+    margin-bottom: 28px;
+  }
+
+  .hero h1 em {
+    font-style: italic;
+    color: var(--gold);
+  }
+
+  .hero p {
+    font-size: 16px;
+    font-weight: 300;
+    color: var(--text-muted);
+    max-width: 480px;
+    margin-bottom: 48px;
+    line-height: 1.75;
+  }
+
+  .hero-line {
+    width: 48px;
+    height: 1px;
+    background: var(--gold);
+    margin-bottom: 48px;
+    opacity: 0.5;
+  }
+
+  /* ── SECTIONS ── */
+  section {
+    padding: 100px 5vw;
+  }
+
+  .section-eyebrow {
+    font-family: 'Inter', sans-serif;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 16px;
+  }
+
+  .section-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: clamp(28px, 4vw, 44px);
+    font-weight: 300;
+    color: var(--cream);
+    margin-bottom: 60px;
+    line-height: 1.2;
+  }
+
+  /* ── HOW IT WORKS ── */
+  .steps-section {
+    background: var(--mid);
+    border-top: 1px solid rgba(201,169,110,0.1);
+    border-bottom: 1px solid rgba(201,169,110,0.1);
+  }
+
+  .steps-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 48px;
+  }
+
+  @media (max-width: 768px) {
+    .steps-grid {
+      grid-template-columns: 1fr;
+      gap: 40px;
+    }
+  }
+
+  .step {
+    position: relative;
+  }
+
+  .step-number {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 72px;
+    font-weight: 300;
+    color: rgba(201,169,110,0.1);
+    line-height: 1;
+    margin-bottom: -16px;
+  }
+
+  .step-icon {
+    font-size: 28px;
+    margin-bottom: 16px;
+    display: block;
+  }
+
+  .step h3 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 22px;
+    font-weight: 400;
+    color: var(--cream);
+    margin-bottom: 12px;
+  }
+
+  .step p {
+    font-size: 14px;
+    color: var(--text-muted);
+    line-height: 1.75;
+    font-weight: 300;
+  }
+
+  .step-divider {
+    display: none;
+  }
+
+  @media (min-width: 769px) {
+    .steps-grid .step:not(:last-child)::after {
+      content: '';
+      position: absolute;
+      top: 40px;
+      right: -24px;
+      width: 1px;
+      height: 60%;
+      background: rgba(201,169,110,0.15);
+    }
+  }
+
+  /* ── FEATURES ── */
+  .features-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 2px;
+    background: rgba(201,169,110,0.1);
+    border: 1px solid rgba(201,169,110,0.1);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  @media (max-width: 600px) {
+    .features-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .feature-card {
+    background: var(--charcoal);
+    padding: 40px 36px;
+    transition: background 0.2s;
+  }
+
+  .feature-card:hover {
+    background: var(--mid);
+  }
+
+  .feature-icon {
+    font-size: 32px;
+    margin-bottom: 20px;
+    display: block;
+  }
+
+  .feature-card h3 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 20px;
+    font-weight: 400;
+    color: var(--cream);
+    margin-bottom: 10px;
+  }
+
+  .feature-card p {
+    font-size: 13px;
+    color: var(--text-muted);
+    font-weight: 300;
+    line-height: 1.7;
+  }
+
+  /* ── FOOTER ── */
+  footer {
+    background: var(--mid);
+    border-top: 1px solid rgba(201,169,110,0.1);
+    padding: 48px 5vw;
+    text-align: center;
+  }
+
+  .footer-logo {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 18px;
+    font-weight: 300;
+    letter-spacing: 0.2em;
+    color: var(--cream);
+    margin-bottom: 8px;
+  }
+
+  .footer-sub {
+    font-family: 'Inter', sans-serif;
+    font-size: 11px;
+    color: var(--text-muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .footer-divider {
+    width: 32px;
+    height: 1px;
+    background: var(--gold);
+    opacity: 0.4;
+    margin: 20px auto;
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <a href="/" class="logo">RAZ<span>A</span>LI</a>
+  <a href="/book" class="btn-gold">Book Now</a>
+</header>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-eyebrow">RAZALI Smart Booking</div>
+  <h1>Your appointment,<br><em>booked in seconds.</em></h1>
+  <div class="hero-line"></div>
+  <p>RAZALI Smart Booking &mdash; available 24/7 via WhatsApp and web. No phone calls, no waiting, no double-bookings.</p>
+  <a href="/book" class="btn-gold">Book an Appointment &rarr;</a>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="steps-section">
+  <div class="section-eyebrow">Simple process</div>
+  <div class="section-title">How it works</div>
+  <div class="steps-grid">
+    <div class="step">
+      <div class="step-number">01</div>
+      <span class="step-icon">💬</span>
+      <h3>Message on WhatsApp</h3>
+      <p>Send any message to our WhatsApp number. The bot greets you instantly in your language — Azerbaijani, English, or Russian.</p>
+    </div>
+    <div class="step">
+      <div class="step-number">02</div>
+      <span class="step-icon">✨</span>
+      <h3>Choose your service</h3>
+      <p>Pick your service, master, date and time on our mobile-friendly booking page. Real-time availability, always up to date.</p>
+    </div>
+    <div class="step">
+      <div class="step-number">03</div>
+      <span class="step-icon">✅</span>
+      <h3>You're confirmed</h3>
+      <p>Receive instant WhatsApp confirmation with all your booking details. A reminder arrives 24 hours before your appointment.</p>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section>
+  <div class="section-eyebrow">Why RAZALI</div>
+  <div class="section-title">Everything you need,<br>nothing you don't.</div>
+  <div class="features-grid">
+    <div class="feature-card">
+      <span class="feature-icon">🌐</span>
+      <h3>3 Languages</h3>
+      <p>Azerbaijani, English, Russian. The bot detects your language automatically.</p>
+    </div>
+    <div class="feature-card">
+      <span class="feature-icon">⏰</span>
+      <h3>24/7 Booking</h3>
+      <p>No phone calls, no waiting. Book at midnight if you want — we're always open.</p>
+    </div>
+    <div class="feature-card">
+      <span class="feature-icon">📅</span>
+      <h3>Smart Calendar</h3>
+      <p>Real-time availability per master. Zero double-bookings, always accurate.</p>
+    </div>
+    <div class="feature-card">
+      <span class="feature-icon">🔔</span>
+      <h3>Auto Reminders</h3>
+      <p>WhatsApp reminder sent 24 hours before your appointment. Never miss a session.</p>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-logo">RAZALI Nails / Hair / Make Up</div>
+  <div class="footer-divider"></div>
+  <div class="footer-sub">Powered by RAZALI Smart Booking</div>
+</footer>
+
+</body>
+</html>

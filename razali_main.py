@@ -49,6 +49,7 @@ executor = ThreadPoolExecutor(max_workers=4)
 BOOKING_URL      = os.environ.get("BOOKING_URL", "https://razali-salon-production.up.railway.app/book")
 SALON_PHONE      = os.environ.get("SALON_PHONE", "+994XXXXXXXXX")
 CANCEL_CUTOFF_HOURS = int(os.environ.get("CANCEL_CUTOFF_HOURS", "2"))  # min hours before appt to allow cancel
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "razali2026")
 TWILIO_SID       = os.environ.get("TWILIO_ACCOUNT_SID", "")
 TWILIO_TOKEN     = os.environ.get("TWILIO_AUTH_TOKEN", "")
 TWILIO_WA_NUMBER = os.environ.get("TWILIO_WHATSAPP_NUMBER", "whatsapp:+994557192949")
@@ -612,6 +613,66 @@ async def api_reschedule_booking(req: RescheduleWebRequest):
         )))
     return JSONResponse({"success": ok})
 
+# ── GET /api/admin/today ───────────────────────────────────────────────────────
+@app.get("/api/admin/today")
+async def api_admin_today(pw: str, date: str = None):
+    if pw != ADMIN_PASSWORD:
+        raise HTTPException(403, "Wrong password")
+    if not date:
+        date = datetime.now().strftime("%Y-%m-%d")
+    try:
+        datetime.strptime(date, "%Y-%m-%d")
+    except ValueError:
+        raise HTTPException(400, "Invalid date")
+    try:
+        db    = get_sheets().open("RAZALI_DB")
+        rows  = db.worksheet("Bookings").get_all_records()
+        result = []
+        for b in rows:
+            if str(b.get("date")) == date and str(b.get("status")) == "Confirmed":
+                mid = str(b.get("master_id"))
+                sid = str(b.get("service_id"))
+                dur = DURATIONS.get((mid, sid), 60)
+                result.append({
+                    "booking_id":    str(b.get("id")),
+                    "customer_name": str(b.get("customer_name","")),
+                    "phone":         str(b.get("phone","")).replace("whatsapp:",""),
+                    "master_id":     mid,
+                    "master_name":   MASTERS.get(mid,{}).get("name", mid),
+                    "master_initials": MASTERS.get(mid,{}).get("name","??")[:2].upper(),
+                    "service_id":    sid,
+                    "service_name":  SERVICES.get(sid,{}).get("name", sid),
+                    "time":          str(b.get("time","")),
+                    "duration":      dur,
+                    "price":         SERVICES.get(sid,{}).get("price",0),
+                })
+        result.sort(key=lambda x: (x["master_id"], x["time"]))
+        masters_list = [{"id": mid, "name": m["name"],
+                         "initials": m["name"][:2].upper()}
+                        for mid, m in MASTERS.items()]
+        return JSONResponse({"date": date, "bookings": result, "masters": masters_list})
+    except Exception as e:
+        log("error", "api_admin_today failed", error=str(e))
+        raise HTTPException(500, "Failed to load data")
+
+# ── GET /admin ─────────────────────────────────────────────────────────────────
+@app.get("/admin", response_class=HTMLResponse)
+async def serve_admin_page():
+    html_path = Path(__file__).parent / "razali_admin.html"
+    if html_path.exists():
+        return HTMLResponse(html_path.read_text(encoding="utf-8"))
+    raise HTTPException(404, "Admin page not found")
+
+# ── GET / — landing page ───────────────────────────────────────────────────────
+@app.get("/", response_class=HTMLResponse)
+async def serve_landing_page():
+    html_path = Path(__file__).parent / "razali_landing.html"
+    if html_path.exists():
+        return HTMLResponse(html_path.read_text(encoding="utf-8"))
+    # Fallback redirect to /book
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url="/book")
+
 # ── GET /book — serve the HTML page ───────────────────────────────────────────
 @app.get("/book", response_class=HTMLResponse)
 async def serve_booking_page():
@@ -937,27 +998,4 @@ async def whatsapp_webhook(request: Request):
     if ulower == kw["reschedule"]:
         b = await asyncio.get_event_loop().run_in_executor(executor, fetch_active_booking, From)
         if not b["found"]:
-            nb = {"en":"📋 No active bookings.","ru":"📋 Нет активных записей.","az":"📋 Aktiv rezervasiyanız yoxdur."}
-            save_wa_session(From, session)
-            return reply_wa(nb[lang])
-        dates = await asyncio.get_event_loop().run_in_executor(
-            executor, get_available_dates, b["master_id"])
-        session.update({"reschedule_booking": b, "state":"RESCHEDULE_DATE",
-                        "available_dates": dates})
-        sn = SERVICES.get(b["service_id"],{}).get("name","")
-        mn = MASTERS.get(b["master_id"],{}).get("name","")
-        df = datetime.strptime(b["date"],"%Y-%m-%d").strftime("%d %b %Y")
-        header = {
-            "en": f"🔄 Rescheduling:\n💅 {sn}\n👩 {mn}\n📅 {df} • {b['time']}\n\nChoose a new date:",
-            "ru": f"🔄 Перенос записи:\n💅 {sn}\n👩 {mn}\n📅 {df} • {b['time']}\n\nВыберите новую дату:",
-            "az": f"🔄 Vaxtı dəyişirsiniz:\n💅 {sn}\n👩 {mn}\n📅 {df} • {b['time']}\n\nYeni tarix seçin:",
-        }
-        save_wa_session(From, session)
-        return reply_wa(header[lang]+"\n\n"+fmt_dates(dates))
-
-    # ── DEFAULT: greeter + booking link ───────────────────────────────────────
-    phone_suffix = From.replace("whatsapp:","").replace(" ","").replace("-","")
-    booking_url  = f"{BOOKING_URL}?phone={phone_suffix}"
-    msg = GREETER[lang].format(url=booking_url, phone=SALON_PHONE)
-    save_wa_session(From, session)
-    return reply_wa(msg)
+            nb = {"en":"📋 No 

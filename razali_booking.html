@@ -251,6 +251,11 @@ body{background:var(--cream);color:var(--charcoal);font-family:var(--fb);font-si
       <div class="err-msg" id="ePhone"></div>
     </div>
     <div class="form-field">
+      <label class="form-label" id="lEmail"></label>
+      <input class="form-input" id="iEmail" type="email" maxlength="100">
+      <div class="err-msg" id="eEmail"></div>
+    </div>
+    <div class="form-field">
       <label class="form-label" id="lNote"></label>
       <input class="form-input" id="iNote" type="text" maxlength="200">
     </div>
@@ -340,11 +345,11 @@ const T = {
     morning: 'Səhər', afternoon: 'Gündüz', evening: 'Axşam',
     noSlots: 'Bu tarixdə boş yer yoxdur.',
     sumLabels: ['Xidmət','Usta','Tarix','Vaxt','Cəmi'],
-    lName: 'Adınız', lPhone: 'Telefon nömrəsi', lNote: 'Qeyd (istəyə bağlı)',
+    lName: 'Adınız', lPhone: 'Telefon nömrəsi', lEmail: 'E-poçt', lNote: 'Qeyd (istəyə bağlı)',
     phName: 'Ad və soyad', phPhone: '+994 XX XXX XX XX',
     phNote: 'Allergiya, istəklər…',
-    hPhone: 'WhatsApp-a təsdiq mesajı göndəriləcək',
-    eName: 'Adınızı daxil edin', ePhone: 'Düzgün telefon nömrəsi daxil edin',
+    hPhone: 'SMS təsdiq mesajı göndəriləcək',
+    eName: 'Adınızı daxil edin', ePhone: 'Düzgün telefon nömrəsi daxil edin', eEmail: 'Düzgün e-poçt daxil edin',
     back: 'Geri', next: 'Davam et', book: 'Rezervasiya et',
     doneTitle: 'Rezervasiya təsdiqləndi!', doneSub: 'WhatsApp-a təsdiq mesajı göndərildi.',
     doneNote: '⏰ Görüşdən 24 saat əvvəl xatırlatma göndəriləcək.',
@@ -389,11 +394,11 @@ const T = {
     morning: 'Morning', afternoon: 'Afternoon', evening: 'Evening',
     noSlots: 'No available slots for this date.',
     sumLabels: ['Service','Master','Date','Time','Total'],
-    lName: 'Your name', lPhone: 'Phone number', lNote: 'Note (optional)',
+    lName: 'Your name', lPhone: 'Phone number', lEmail: 'Email', lNote: 'Note (optional)',
     phName: 'First and last name', phPhone: '+994 XX XXX XX XX',
     phNote: 'Allergies, preferences…',
-    hPhone: "You'll receive a WhatsApp confirmation",
-    eName: 'Please enter your name', ePhone: 'Please enter a valid phone number',
+    hPhone: "You'll receive an SMS confirmation",
+    eName: 'Please enter your name', ePhone: 'Please enter a valid phone number', eEmail: 'Please enter a valid email',
     back: 'Back', next: 'Continue', book: 'Book Appointment',
     doneTitle: "You're booked!", doneSub: 'A WhatsApp confirmation has been sent.',
     doneNote: '⏰ You will receive a reminder 24 hours before your appointment.',
@@ -438,11 +443,11 @@ const T = {
     morning: 'Утро', afternoon: 'День', evening: 'Вечер',
     noSlots: 'На эту дату нет свободных записей.',
     sumLabels: ['Услуга','Мастер','Дата','Время','Итого'],
-    lName: 'Ваше имя', lPhone: 'Номер телефона', lNote: 'Примечание (необязательно)',
+    lName: 'Ваше имя', lPhone: 'Номер телефона', lEmail: 'Эл. почта', lNote: 'Примечание (необязательно)',
     phName: 'Имя и фамилия', phPhone: '+994 XX XXX XX XX',
     phNote: 'Аллергии, пожелания…',
-    hPhone: 'Подтверждение придёт в WhatsApp',
-    eName: 'Введите ваше имя', ePhone: 'Введите корректный номер',
+    hPhone: 'Подтверждение придёт по SMS',
+    eName: 'Введите ваше имя', ePhone: 'Введите корректный номер', eEmail: 'Введите корректный email',
     back: 'Назад', next: 'Продолжить', book: 'Записаться',
     doneTitle: 'Запись подтверждена!', doneSub: 'Подтверждение отправлено в WhatsApp.',
     doneNote: '⏰ Напоминание придёт за 24 часа.',
@@ -1070,13 +1075,16 @@ function renderCheckout() {
 
   document.getElementById('lName').textContent  = t('lName');
   document.getElementById('lPhone').textContent = t('lPhone');
+  document.getElementById('lEmail').textContent = t('lEmail');
   document.getElementById('lNote').textContent  = t('lNote');
   document.getElementById('iName').placeholder  = t('phName');
   document.getElementById('iPhone').placeholder = t('phPhone');
+  document.getElementById('iEmail').placeholder = 'example@email.com';
   document.getElementById('iNote').placeholder  = t('phNote');
   document.getElementById('hPhone').textContent = t('hPhone');
   document.getElementById('eName').textContent  = t('eName');
   document.getElementById('ePhone').textContent = t('ePhone');
+  document.getElementById('eEmail').textContent = t('eEmail');
   if (prefilledPhone) document.getElementById('iPhone').value = prefilledPhone;
 }
 
@@ -1084,6 +1092,7 @@ function renderCheckout() {
 async function submitBooking() {
   const name  = document.getElementById('iName').value.trim();
   const phone = document.getElementById('iPhone').value.trim();
+  const email = document.getElementById('iEmail').value.trim();
   let ok = true;
   document.getElementById('iName').classList.toggle('err', !name);
   document.getElementById('eName').classList.toggle('show', !name);
@@ -1092,13 +1101,17 @@ async function submitBooking() {
   document.getElementById('iPhone').classList.toggle('err', !phoneOk);
   document.getElementById('ePhone').classList.toggle('show', !phoneOk);
   if (!phoneOk) ok = false;
+  const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  document.getElementById('iEmail').classList.toggle('err', !emailOk);
+  document.getElementById('eEmail').classList.toggle('show', !emailOk);
+  if (!emailOk) ok = false;
   if (!ok) return;
   showLoading(true);
   try {
     const resp = await fetch('/api/book', {
       method: 'POST', headers: {'Content-Type':'application/json'},
       body: JSON.stringify({
-        name, phone,
+        name, phone, email,
         note:       document.getElementById('iNote').value.trim(),
         service_id: selectedSvc.id,
         master_id:  selectedMst.id,

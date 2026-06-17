@@ -54,8 +54,11 @@ ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "razali2026")
 TWILIO_SID       = os.environ.get("TWILIO_ACCOUNT_SID", "")
 TWILIO_TOKEN     = os.environ.get("TWILIO_AUTH_TOKEN", "")
 TWILIO_WA_NUMBER = os.environ.get("TWILIO_WHATSAPP_NUMBER", "whatsapp:+994557192949")
+TWILIO_SMS_NUMBER = os.environ.get("TWILIO_SMS_NUMBER", "")   # regular Twilio number for SMS
 TELEGRAM_TOKEN   = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT    = os.environ.get("TELEGRAM_CHAT_ID", "")
+SENDGRID_API_KEY  = os.environ.get("SENDGRID_API_KEY", "")
+SENDER_EMAIL      = os.environ.get("SENDER_EMAIL", "")        # verified sender in SendGrid
 
 # ─── Redis ────────────────────────────────────────────────────────────────────
 redis_client = redis.from_url(
@@ -332,6 +335,63 @@ async def whatsapp_send(phone: str, msg: str) -> bool:
         log("error", "whatsapp_send failed", error=str(e))
         return False
 
+async def send_sms(to_phone: str, msg: str) -> bool:
+    """Send SMS via Twilio (works to any phone number, no sandbox)."""
+    if not TWILIO_SID or not TWILIO_TOKEN or not TWILIO_SMS_NUMBER:
+        return False
+    try:
+        async with httpx.AsyncClient() as c:
+            r = await c.post(
+                f"https://api.twilio.com/2010-04-01/Accounts/{TWILIO_SID}/Messages.json",
+                data={"From": TWILIO_SMS_NUMBER, "To": to_phone, "Body": msg},
+                auth=(TWILIO_SID, TWILIO_TOKEN), timeout=10.0)
+            return r.status_code == 201
+    except Exception as e:
+        log("error", "send_sms failed", error=str(e))
+        return False
+
+async def send_email(to_email: str, subject: str, body_html: str) -> bool:
+    """Send email via SendGrid."""
+    if not SENDGRID_API_KEY or not SENDER_EMAIL:
+        return False
+    try:
+        async with httpx.AsyncClient() as c:
+            r = await c.post(
+                "https://api.sendgrid.com/v3/mail/send",
+                headers={"Authorization": f"Bearer {SENDGRID_API_KEY}",
+                         "Content-Type": "application/json"},
+                json={
+                    "personalizations": [{"to": [{"email": to_email}]}],
+                    "from": {"email": SENDER_EMAIL, "name": "RAZALI Salon"},
+                    "subject": subject,
+                    "content": [{"type": "text/html", "value": body_html}],
+                },
+                timeout=10.0)
+            return r.status_code == 202
+    except Exception as e:
+        log("error", "send_email failed", error=str(e))
+        return False
+
+def booking_email_html(bid, name, svc_name, master_name, date_fmt, time, price, booking_url):
+    return f"""
+<div style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto;padding:24px;color:#222">
+  <h1 style="font-size:22px;margin-bottom:4px">RAZALI</h1>
+  <p style="color:#888;margin-top:0">Nails · Hair</p>
+  <hr style="border:none;border-top:1px solid #eee;margin:16px 0">
+  <h2 style="font-size:18px;color:#2a7a2a">✅ Booking Confirmed</h2>
+  <table style="width:100%;border-collapse:collapse;margin:16px 0">
+    <tr><td style="padding:6px 0;color:#888;width:40%">Booking ID</td><td style="padding:6px 0"><b>#{bid}</b></td></tr>
+    <tr><td style="padding:6px 0;color:#888">Name</td><td style="padding:6px 0">{name}</td></tr>
+    <tr><td style="padding:6px 0;color:#888">Service</td><td style="padding:6px 0">{svc_name}</td></tr>
+    <tr><td style="padding:6px 0;color:#888">Master</td><td style="padding:6px 0">{master_name}</td></tr>
+    <tr><td style="padding:6px 0;color:#888">Date</td><td style="padding:6px 0">{date_fmt}</td></tr>
+    <tr><td style="padding:6px 0;color:#888">Time</td><td style="padding:6px 0">{time}</td></tr>
+    <tr><td style="padding:6px 0;color:#888">Price</td><td style="padding:6px 0"><b>{int(price)} AZN</b></td></tr>
+  </table>
+  <hr style="border:none;border-top:1px solid #eee;margin:16px 0">
+  <p style="color:#888;font-size:13px">To manage your booking visit: <a href="{booking_url}">{booking_url}</a></p>
+</div>"""
+
 def booking_alert(bid, name, phone, mid, sid, date, time):
     mn  = MASTERS.get(mid,{}).get("name", mid)
     svc = SERVICES.get(sid,{})
@@ -474,6 +534,7 @@ async def api_dates(master_id: str):
 class BookingRequest(BaseModel):
     name:       str
     phone:      str
+    email:      str = ""
     service_id: str
     master_id:  str
     date:       str
@@ -499,11 +560,11 @@ async def api_book(req: BookingRequest):
     if req.time not in slots:
         raise HTTPException(409, "This slot is no longer available. Please choose another time.")
 
-    # Normalise phone for WhatsApp
-    wa_phone = phone.replace(" ","").replace("-","")
-    if not wa_phone.startswith("+"):
-        wa_phone = "+" + wa_phone
-    wa_phone = "whatsapp:" + wa_phone
+    # Normalise phone
+    clean_phone = phone.replace(" ","").replace("-","")
+    if not clean_phone.startswith("+"):
+        clean_phone = "+" + clean_phone
+    wa_phone = "whatsapp:" + clean_phone
 
     bid = await asyncio.get_event_loop().run_in_executor(
         executor, write_booking,
@@ -512,26 +573,33 @@ async def api_book(req: BookingRequest):
     if not bid:
         raise HTTPException(500, "Failed to save booking. Please try again.")
 
-    # Telegram alert
+    svc = SERVICES.get(req.service_id, {})
+    mn  = MASTERS.get(req.master_id, {}).get("name","")
+    df  = datetime.strptime(req.date,"%Y-%m-%d").strftime("%d %b %Y")
+
+    # Telegram alert to salon
     asyncio.create_task(telegram(
         booking_alert(bid, name, wa_phone, req.master_id, req.service_id, req.date, req.time)
     ))
 
-    # WhatsApp confirmation to customer
-    svc = SERVICES.get(req.service_id, {})
-    mn  = MASTERS.get(req.master_id, {}).get("name","")
-    df  = datetime.strptime(req.date,"%Y-%m-%d").strftime("%d %b %Y")
-    wa_msg = (
-        f"✅ *Booking confirmed! / Rezervasiya təsdiqləndi!*\n\n"
-        f"🆔 *#{bid}*\n"
-        f"💅 {svc.get('name','')}\n"
-        f"👩 {mn}\n"
-        f"📅 {df} • 🕐 {req.time}\n"
-        f"💰 {int(svc.get('price',0))} AZN\n\n"
-        f"⏰ You'll receive a reminder 24h before.\n"
-        f"To cancel or reschedule, reply to this message."
+    # SMS confirmation to customer
+    sms_msg = (
+        f"RAZALI: Rezervasiyaniz tedsdiqlendi!\n"
+        f"#{bid} | {svc.get('name','')} | {mn}\n"
+        f"{df} saat {req.time}\n"
+        f"{int(svc.get('price',0))} AZN\n"
+        f"Idareetme: {BOOKING_URL}"
     )
-    asyncio.create_task(whatsapp_send(wa_phone, wa_msg))
+    asyncio.create_task(send_sms(clean_phone, sms_msg))
+
+    # Email confirmation to customer
+    if req.email:
+        asyncio.create_task(send_email(
+            req.email,
+            f"RAZALI — Booking Confirmed #{bid}",
+            booking_email_html(bid, name, svc.get('name',''), mn, df,
+                               req.time, svc.get('price',0), BOOKING_URL)
+        ))
 
     log("info", "Booking confirmed via web", id=bid, phone=wa_phone[-6:])
     return JSONResponse({"booking_id": bid})

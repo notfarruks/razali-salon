@@ -208,13 +208,13 @@ def get_available_dates(master_id: str) -> list[str]:
     return result
 
 # ─── Sheet writers ────────────────────────────────────────────────────────────
-def write_booking(phone, name, master_id, service_id, date, time, note=""):
+def write_booking(phone, name, master_id, service_id, date, time, note="", email=""):
     try:
         db    = get_sheets().open("RAZALI_DB")
         sheet = db.worksheet("Bookings")
         bid   = str(uuid.uuid4())[:8].upper()
         sheet.append_row([bid, phone, name, master_id, service_id, date, time,
-                          "Confirmed", "FALSE", note])
+                          "Confirmed", "FALSE", note, email])
         log("info", "Booking written", id=bid)
         return bid
     except Exception as e:
@@ -568,7 +568,7 @@ async def api_book(req: BookingRequest):
 
     bid = await asyncio.get_event_loop().run_in_executor(
         executor, write_booking,
-        wa_phone, name, req.master_id, req.service_id, req.date, req.time, req.note
+        wa_phone, name, req.master_id, req.service_id, req.date, req.time, req.note, req.email
     )
     if not bid:
         raise HTTPException(500, "Failed to save booking. Please try again.")

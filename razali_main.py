@@ -478,19 +478,36 @@ async def reminder_loop():
                     str(b.get("time",""))[:2] == th and
                     str(b.get("status")) == "Confirmed" and
                     str(b.get("reminder_sent","")).upper() == "FALSE"):
-                    phone = str(b.get("phone",""))
+                    email = str(b.get("email","")).strip()
                     mn    = MASTERS.get(str(b.get("master_id")),{}).get("name","")
                     sn    = SERVICES.get(str(b.get("service_id")),{}).get("name","")
                     df    = datetime.strptime(td,"%Y-%m-%d").strftime("%d %b %Y")
-                    msg   = (f"⏰ *Reminder / Xatırlatma*\n\n"
-                             f"Tomorrow *{df}* at *{b.get('time')}*\n"
-                             f"you have an appointment with *{mn}* for *{sn}*.\n\n"
-                             f"📍 RAZALI Nails / Hair / Make Up\n\n"
-                             f"To cancel or reschedule reply to this bot.")
-                    ok = await whatsapp_send(phone, msg)
-                    if ok:
+                    if email:
+                        subject = f"RAZALI — Reminder: tomorrow at {b.get('time')}"
+                        body = f"""
+<div style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto;padding:24px;color:#222">
+  <h1 style="font-size:22px;margin-bottom:4px">RAZALI</h1>
+  <p style="color:#888;margin-top:0">Nails · Hair</p>
+  <hr style="border:none;border-top:1px solid #eee;margin:16px 0">
+  <h2 style="font-size:18px;color:#2a5a9a">⏰ Appointment Reminder</h2>
+  <p>You have an appointment <b>tomorrow, {df}</b> at <b>{b.get('time')}</b>.</p>
+  <table style="width:100%;border-collapse:collapse;margin:16px 0">
+    <tr><td style="padding:6px 0;color:#888;width:40%">Service</td><td style="padding:6px 0">{sn}</td></tr>
+    <tr><td style="padding:6px 0;color:#888">Master</td><td style="padding:6px 0">{mn}</td></tr>
+    <tr><td style="padding:6px 0;color:#888">Date</td><td style="padding:6px 0">{df}</td></tr>
+    <tr><td style="padding:6px 0;color:#888">Time</td><td style="padding:6px 0"><b>{b.get('time')}</b></td></tr>
+  </table>
+  <p style="color:#888;font-size:13px">To manage your booking visit: <a href="{BOOKING_URL}">{BOOKING_URL}</a></p>
+</div>"""
+                        ok = await send_email(email, subject, body)
+                        if ok:
+                            sheet.update_cell(i, 9, "TRUE")
+                            log("info", "Email reminder sent", email=email[-6:])
+                        else:
+                            log("warning", "Email reminder failed", email=email[-6:])
+                    else:
+                        # No email — mark sent anyway so we don't retry forever
                         sheet.update_cell(i, 9, "TRUE")
-                        log("info", "Reminder sent", phone=phone[-6:])
         except Exception as e:
             log("error", "reminder_loop error", error=str(e))
 
@@ -627,7 +644,7 @@ async def api_book(req: BookingRequest):
 
     # Telegram alert to salon
     asyncio.create_task(telegram(
-        booking_alert(bid, name, wa_phone, resolved_master_id, req.service_id, req.date, req.time)
+        booking_alert(bid, name, clean_phone, resolved_master_id, req.service_id, req.date, req.time)
     ))
 
     # SMS confirmation to customer

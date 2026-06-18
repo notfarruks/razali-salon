@@ -541,9 +541,35 @@ function setLang(l) {
   document.querySelectorAll('.lang-btn').forEach(b =>
     b.classList.toggle('active', b.textContent === l.toUpperCase())
   );
+
+  // If "any master" is selected, refresh its display name to the new language
+  if (selectedMst && selectedMst.id === 'any') {
+    selectedMst = { id: 'any', name: t('anyMaster') };
+  }
+
   applyTranslations();
-  if (appData) rerender();
-  if (manageMode) applyManageTranslations();
+
+  try {
+    if (appData) rerender();
+  } catch(e) {}
+
+  // Re-render done screen if visible
+  try {
+    if (document.getElementById('sDone').classList.contains('visible')) {
+      renderDone(document.getElementById('doneId').textContent.replace('Booking ID: #',''));
+    }
+  } catch(e) {}
+
+  if (manageMode) {
+    applyManageTranslations();
+    // Re-render booking list if loaded
+    try { if (mgBookings.length) renderMgBookings(); } catch(e) {}
+    // Re-render reschedule calendar/slots if open
+    try { if (mgAvailDates.length && document.getElementById('mgP3').style.display !== 'none') {
+      renderMgWeek();
+      if (mgSelDate) renderMgSlots();
+    }} catch(e) {}
+  }
 }
 
 function t(key, ...args) {

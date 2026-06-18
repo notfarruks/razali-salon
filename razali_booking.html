@@ -98,6 +98,11 @@ body{background:var(--cream);color:var(--charcoal);font-family:var(--fb);font-si
 .slot{background:var(--white);border:1px solid var(--cream-dark);padding:11px 6px;text-align:center;cursor:pointer;font-size:14px;font-weight:500;transition:all .2s;letter-spacing:.02em}
 .slot:hover{border-color:var(--gold)}.slot.sel{background:var(--charcoal);color:var(--cream);border-color:var(--charcoal)}
 .no-date{text-align:center;padding:30px 0;color:var(--stone);font-size:13px;font-style:italic}
+/* Slot hold timer */
+.hold-timer{display:none;background:var(--charcoal);color:var(--gold);text-align:center;padding:10px 24px;font-size:12px;letter-spacing:.06em;font-weight:500}
+.hold-timer.show{display:block}
+.hold-timer.warn{color:#e67e22}
+.hold-timer.expired{background:#7a1a1a;color:#f5b7b1}
 
 /* CHECKOUT */
 .checkout-wrap{padding:10px 24px 20px}
@@ -189,6 +194,9 @@ body{background:var(--cream);color:var(--charcoal);font-family:var(--fb);font-si
     <span class="ps" id="ps3"></span>
   </div>
 </div>
+
+<!-- Slot hold timer banner (shows on step 3) -->
+<div class="hold-timer" id="holdTimer"></div>
 
 <!-- ══ BOOKING FLOW ══════════════════════════════════════════════════════════ -->
 
@@ -341,6 +349,9 @@ const T = {
     catCount: (n) => `${n} xidmət`,
     svcDur: (n) => `${n} dəq`,
     masterMeta: (sp, ex) => [sp, ex].filter(Boolean).join(' · '),
+    anyMaster: 'İstənilən usta', anyMasterMeta: 'Ən erkən mövcud vaxt',
+    holdMsg: (s) => `⏱ ${s} — bu vaxt sizin üçün saxlanılır`,
+    holdExpired: 'Vaxt bitdi. Yenidən vaxt seçin.',
     noDate: 'Mövcud saatları görmək üçün tarix seçin',
     morning: 'Səhər', afternoon: 'Gündüz', evening: 'Axşam',
     noSlots: 'Bu tarixdə boş yer yoxdur.',
@@ -390,6 +401,9 @@ const T = {
     catCount: (n) => `${n} services`,
     svcDur: (n) => `${n} min`,
     masterMeta: (sp, ex) => [sp, ex].filter(Boolean).join(' · '),
+    anyMaster: 'Any available master', anyMasterMeta: 'Earliest available slot',
+    holdMsg: (s) => `⏱ ${s} — this slot is held for you`,
+    holdExpired: 'Time expired. Please select a new slot.',
     noDate: 'Select a date to see available times',
     morning: 'Morning', afternoon: 'Afternoon', evening: 'Evening',
     noSlots: 'No available slots for this date.',
@@ -439,6 +453,9 @@ const T = {
     catCount: (n) => `${n} услуг`,
     svcDur: (n) => `${n} мин`,
     masterMeta: (sp, ex) => [sp, ex].filter(Boolean).join(' · '),
+    anyMaster: 'Любой мастер', anyMasterMeta: 'Ближайший свободный слот',
+    holdMsg: (s) => `⏱ ${s} — слот держится для вас`,
+    holdExpired: 'Время истекло. Выберите новое время.',
     noDate: 'Выберите дату, чтобы увидеть доступное время',
     morning: 'Утро', afternoon: 'День', evening: 'Вечер',
     noSlots: 'На эту дату нет свободных записей.',
@@ -509,6 +526,11 @@ let mgAvailDates = [];
 let mgAvailSlots = [];
 let mgSelDate    = null;
 let mgSelTime    = null;
+
+// Slot hold timer state
+let holdTimerInterval = null;
+let holdExpiresAt     = null;
+let resolvedMasterName = null; // name returned from /api/book when "any" was chosen
 
 const urlParams      = new URLSearchParams(window.location.search);
 const prefilledPhone = urlParams.get('phone') || '';
@@ -649,6 +671,7 @@ function goHome() {
   if (manageMode) toggleManage();
   selectedCat = null; selectedSvc = null; selectedMst = null;
   selectedDate = null; selectedTime = null;
+  resolvedMasterName = null;
   step = 0;
   showStep(0);
   document.getElementById('svcList').style.display = 'none';
@@ -834,9 +857,13 @@ function showStep(n) {
   updateProgress(Math.min(n,3));
   updateBottomBar();
   window.scrollTo(0,0);
+  // Hold timer: start on checkout, clear when leaving
+  if (n === 3 && selectedDate && selectedTime) { startHoldTimer(); }
+  else { clearHoldTimer(); }
 }
 
 function showDone(bookingId) {
+  clearHoldTimer();
   ['s0','s1','s2','s3'].forEach(id =>
     document.getElementById(id).classList.remove('visible')
   );
@@ -939,7 +966,18 @@ async function loadMasters() { renderMasters(); }
 
 function renderMasters() {
   if (!appData) return;
-  document.getElementById('masterList').innerHTML = appData.masters.map(m => {
+  const anyCard = `<div class="master-card ${selectedMst&&selectedMst.id==='any'?'sel':''}" onclick="selectMst('any')">
+    <div class="avatar" style="background:var(--gold-light);border-color:var(--gold-light);font-size:22px">✨</div>
+    <div style="flex:1">
+      <div class="master-name">${t('anyMaster')}</div>
+      <div class="master-meta">${t('anyMasterMeta')}</div>
+    </div>
+    <div style="text-align:right">
+      <div class="master-price">${selectedSvc ? selectedSvc.price+' AZN' : ''}</div>
+      <div class="radio" style="margin:6px 0 0 auto"><div class="radio-inner"></div></div>
+    </div>
+  </div>`;
+  const masterCards = appData.masters.map(m => {
     const meta = t('masterMeta', m.specialty, m.experience);
     return `<div class="master-card ${selectedMst&&selectedMst.id===m.id?'sel':''}" onclick="selectMst('${m.id}')">
       <div class="avatar">${m.initials}</div>
@@ -953,10 +991,15 @@ function renderMasters() {
       </div>
     </div>`;
   }).join('');
+  document.getElementById('masterList').innerHTML = anyCard + masterCards;
 }
 
 function selectMst(id) {
-  selectedMst = appData.masters.find(m => m.id === id);
+  if (id === 'any') {
+    selectedMst = { id: 'any', name: t('anyMaster') };
+  } else {
+    selectedMst = appData.masters.find(m => m.id === id);
+  }
   renderMasters(); updateBottomBar();
 }
 
@@ -970,7 +1013,8 @@ async function initCalendar() {
   selectedDate = null; selectedTime = null;
   showLoading(true);
   try {
-    const r = await fetch(`/api/dates?master_id=${selectedMst.id}`);
+    const svcParam = selectedSvc ? `&service_id=${selectedSvc.id}` : '';
+    const r = await fetch(`/api/dates?master_id=${selectedMst.id}${svcParam}`);
     const d = await r.json();
     availDates = d.dates || [];
   } catch(e) { availDates = []; }
@@ -1059,6 +1103,40 @@ function fmtDate(dateStr) {
   return `${d.getDate()} ${mx[d.getMonth()]}, ${dx[dayIdx]}`;
 }
 
+// ── Slot hold timer ───────────────────────────────────────────────────────────
+function startHoldTimer() {
+  clearHoldTimer();
+  holdExpiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
+  tickHoldTimer();
+  holdTimerInterval = setInterval(tickHoldTimer, 1000);
+}
+
+function clearHoldTimer() {
+  if (holdTimerInterval) { clearInterval(holdTimerInterval); holdTimerInterval = null; }
+  holdExpiresAt = null;
+  const el = document.getElementById('holdTimer');
+  el.classList.remove('show','warn','expired');
+}
+
+function tickHoldTimer() {
+  const el = document.getElementById('holdTimer');
+  if (!holdExpiresAt) { el.classList.remove('show'); return; }
+  const rem = Math.max(0, Math.round((holdExpiresAt - Date.now()) / 1000));
+  if (rem === 0) {
+    clearInterval(holdTimerInterval); holdTimerInterval = null;
+    el.classList.add('show','expired'); el.classList.remove('warn');
+    el.textContent = t('holdExpired');
+    // Reset to time selection step
+    setTimeout(() => { clearHoldTimer(); showStep(2); showToast(t('holdExpired')); }, 2500);
+    return;
+  }
+  const mm = String(Math.floor(rem / 60)).padStart(2,'0');
+  const ss = String(rem % 60).padStart(2,'0');
+  el.classList.add('show'); el.classList.remove('expired');
+  el.classList.toggle('warn', rem <= 60);
+  el.textContent = t('holdMsg', `${mm}:${ss}`);
+}
+
 // ── STEP 3: Checkout ──────────────────────────────────────────────────────────
 function renderCheckout() {
   const df = fmtDate(selectedDate);
@@ -1122,6 +1200,7 @@ async function submitBooking() {
     showLoading(false);
     if (resp.ok) {
       const data = await resp.json();
+      if (data.master_name) resolvedMasterName = data.master_name;
       showDone(data.booking_id);
     } else if (resp.status === 409) {
       showToast(t('errSlot')); showStep(2);
@@ -1139,13 +1218,12 @@ function renderDone(bookingId) {
   document.getElementById('doneId').textContent    = 'Booking ID: #' + bookingId;
   document.getElementById('doneManageBtn').textContent = t('doneManage');
   document.getElementById('doneHomeBtn').textContent   = t('doneHome');
-  const df = new Date(selectedDate+'T12:00:00').toLocaleDateString(
-    lang==='ru'?'ru-RU':'az-AZ', {weekday:'long',day:'numeric',month:'long'}
-  );
+  const df = fmtDate(selectedDate);
+  const displayMaster = resolvedMasterName || selectedMst.name;
   const labels = t('doneRowLabels');
   document.getElementById('doneDetails').innerHTML = [
     [labels[0], selectedSvc.name],
-    [labels[1], selectedMst.name],
+    [labels[1], displayMaster],
     [labels[2], df],
     [labels[3], selectedTime],
     [labels[4], selectedSvc.price + ' AZN'],

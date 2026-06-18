@@ -157,7 +157,19 @@ def is_blocked(master_id, date_str):
     return (master_id, date_str) in BLOCKED_DATES or ("ALL", date_str) in BLOCKED_DATES
 
 # ─── Slot logic ───────────────────────────────────────────────────────────────
+def is_slot_held(master_id: str, date_str: str, time_str: str) -> bool:
+    return redis_client.exists(f"razali:hold:{master_id}:{date_str}:{time_str}") > 0
+
 def get_slots(master_id: str, service_id: str, date_str: str) -> list[str]:
+    if master_id == "any":
+        # Union of available slots across all eligible masters
+        eligible = [mid for mid in MASTERS if (mid, service_id) in DURATIONS]
+        all_slots: set[str] = set()
+        for mid in eligible:
+            for s in get_slots(mid, service_id, date_str):
+                all_slots.add(s)
+        return sorted(all_slots)
+
     master = MASTERS.get(master_id)
     if not master or is_blocked(master_id, date_str):
         return []
@@ -193,7 +205,28 @@ def get_slots(master_id: str, service_id: str, date_str: str) -> list[str]:
         cur += timedelta(minutes=30)
     return slots
 
-def get_available_dates(master_id: str) -> list[str]:
+def get_available_dates(master_id: str, service_id: str = "") -> list[str]:
+    if master_id == "any":
+        # Union of dates across all masters who can do this service
+        eligible = [mid for mid in MASTERS
+                    if not service_id or (mid, service_id) in DURATIONS]
+        if not eligible:
+            return []
+        all_dates: set[str] = set()
+        today = datetime.now().date()
+        check = today + timedelta(days=1)
+        limit = today + timedelta(days=60)
+        while check <= limit:
+            ds  = check.strftime("%Y-%m-%d")
+            day = check.strftime("%a").lower()
+            for mid in eligible:
+                m = MASTERS[mid]
+                if m.get(day, False) and not is_blocked(mid, ds):
+                    all_dates.add(ds)
+                    break
+            check += timedelta(days=1)
+        return sorted(all_dates)[:28]
+
     master = MASTERS.get(master_id)
     if not master:
         return []
@@ -522,11 +555,11 @@ async def api_slots(master_id: str, service_id: str, date: str):
 
 # ── GET /api/dates ─────────────────────────────────────────────────────────────
 @app.get("/api/dates")
-async def api_dates(master_id: str):
-    if master_id not in MASTERS:
+async def api_dates(master_id: str, service_id: str = ""):
+    if master_id != "any" and master_id not in MASTERS:
         raise HTTPException(404, "Master not found")
     dates = await asyncio.get_event_loop().run_in_executor(
-        executor, get_available_dates, master_id
+        executor, get_available_dates, master_id, service_id
     )
     return JSONResponse({"dates": dates})
 
@@ -550,12 +583,27 @@ async def api_book(req: BookingRequest):
         raise HTTPException(400, "Name and phone are required")
     if req.service_id not in SERVICES:
         raise HTTPException(400, "Invalid service")
-    if req.master_id not in MASTERS:
+
+    # Resolve "any" master → pick first eligible master with the slot free
+    resolved_master_id = req.master_id
+    if req.master_id == "any":
+        eligible = [mid for mid in MASTERS if (mid, req.service_id) in DURATIONS]
+        resolved_master_id = None
+        for mid in eligible:
+            slots_check = await asyncio.get_event_loop().run_in_executor(
+                executor, get_slots, mid, req.service_id, req.date
+            )
+            if req.time in slots_check:
+                resolved_master_id = mid
+                break
+        if not resolved_master_id:
+            raise HTTPException(409, "This slot is no longer available. Please choose another time.")
+    elif req.master_id not in MASTERS:
         raise HTTPException(400, "Invalid master")
 
-    # Double-check slot is still free
+    # Double-check slot is still free for the resolved master
     slots = await asyncio.get_event_loop().run_in_executor(
-        executor, get_slots, req.master_id, req.service_id, req.date
+        executor, get_slots, resolved_master_id, req.service_id, req.date
     )
     if req.time not in slots:
         raise HTTPException(409, "This slot is no longer available. Please choose another time.")
@@ -568,18 +616,18 @@ async def api_book(req: BookingRequest):
 
     bid = await asyncio.get_event_loop().run_in_executor(
         executor, write_booking,
-        wa_phone, name, req.master_id, req.service_id, req.date, req.time, req.note, req.email
+        wa_phone, name, resolved_master_id, req.service_id, req.date, req.time, req.note, req.email
     )
     if not bid:
         raise HTTPException(500, "Failed to save booking. Please try again.")
 
     svc = SERVICES.get(req.service_id, {})
-    mn  = MASTERS.get(req.master_id, {}).get("name","")
+    mn  = MASTERS.get(resolved_master_id, {}).get("name","")
     df  = datetime.strptime(req.date,"%Y-%m-%d").strftime("%d %b %Y")
 
     # Telegram alert to salon
     asyncio.create_task(telegram(
-        booking_alert(bid, name, wa_phone, req.master_id, req.service_id, req.date, req.time)
+        booking_alert(bid, name, wa_phone, resolved_master_id, req.service_id, req.date, req.time)
     ))
 
     # SMS confirmation to customer
@@ -602,7 +650,7 @@ async def api_book(req: BookingRequest):
         ))
 
     log("info", "Booking confirmed via web", id=bid, phone=wa_phone[-6:])
-    return JSONResponse({"booking_id": bid})
+    return JSONResponse({"booking_id": bid, "master_name": mn})
 
 # ── GET /api/my-bookings ───────────────────────────────────────────────────────
 @app.get("/api/my-bookings")

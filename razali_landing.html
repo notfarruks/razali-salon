@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="az">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -43,6 +43,7 @@
     align-items: center;
     justify-content: space-between;
     height: 64px;
+    gap: 12px;
   }
 
   .logo {
@@ -52,10 +53,36 @@
     letter-spacing: 0.25em;
     color: var(--cream);
     text-decoration: none;
+    flex-shrink: 0;
   }
 
-  .logo span {
-    color: var(--gold);
+  .logo span { color: var(--gold); }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .lang-toggle { display: flex; gap: 3px; }
+
+  .lang-btn {
+    background: none;
+    border: 1px solid #444;
+    color: var(--text-muted);
+    font-family: 'Inter', sans-serif;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    padding: 5px 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .lang-btn.active {
+    background: var(--gold);
+    border-color: var(--gold);
+    color: var(--charcoal);
   }
 
   .btn-gold {
@@ -73,12 +100,10 @@
     transition: background 0.2s, transform 0.15s;
     border: none;
     cursor: pointer;
+    white-space: nowrap;
   }
 
-  .btn-gold:hover {
-    background: var(--gold-dark);
-    transform: translateY(-1px);
-  }
+  .btn-gold:hover { background: var(--gold-dark); transform: translateY(-1px); }
 
   /* ── HERO ── */
   .hero {
@@ -87,7 +112,7 @@
     flex-direction: column;
     justify-content: center;
     align-items: flex-start;
-    padding: 80px 5vw 80px;
+    padding: 80px 5vw;
     position: relative;
     overflow: hidden;
   }
@@ -101,7 +126,6 @@
   }
 
   .hero-eyebrow {
-    font-family: 'Inter', sans-serif;
     font-size: 11px;
     font-weight: 500;
     letter-spacing: 0.25em;
@@ -120,10 +144,7 @@
     margin-bottom: 28px;
   }
 
-  .hero h1 em {
-    font-style: italic;
-    color: var(--gold);
-  }
+  .hero h1 em { font-style: italic; color: var(--gold); }
 
   .hero p {
     font-size: 16px;
@@ -143,12 +164,9 @@
   }
 
   /* ── SECTIONS ── */
-  section {
-    padding: 100px 5vw;
-  }
+  section { padding: 100px 5vw; }
 
   .section-eyebrow {
-    font-family: 'Inter', sans-serif;
     font-size: 11px;
     font-weight: 500;
     letter-spacing: 0.25em;
@@ -180,15 +198,10 @@
   }
 
   @media (max-width: 768px) {
-    .steps-grid {
-      grid-template-columns: 1fr;
-      gap: 40px;
-    }
+    .steps-grid { grid-template-columns: 1fr; gap: 40px; }
   }
 
-  .step {
-    position: relative;
-  }
+  .step { position: relative; }
 
   .step-number {
     font-family: 'Cormorant Garamond', serif;
@@ -199,11 +212,7 @@
     margin-bottom: -16px;
   }
 
-  .step-icon {
-    font-size: 28px;
-    margin-bottom: 16px;
-    display: block;
-  }
+  .step-icon { font-size: 28px; margin-bottom: 16px; display: block; }
 
   .step h3 {
     font-family: 'Cormorant Garamond', serif;
@@ -213,25 +222,14 @@
     margin-bottom: 12px;
   }
 
-  .step p {
-    font-size: 14px;
-    color: var(--text-muted);
-    line-height: 1.75;
-    font-weight: 300;
-  }
-
-  .step-divider {
-    display: none;
-  }
+  .step p { font-size: 14px; color: var(--text-muted); line-height: 1.75; font-weight: 300; }
 
   @media (min-width: 769px) {
     .steps-grid .step:not(:last-child)::after {
       content: '';
       position: absolute;
-      top: 40px;
-      right: -24px;
-      width: 1px;
-      height: 60%;
+      top: 40px; right: -24px;
+      width: 1px; height: 60%;
       background: rgba(201,169,110,0.15);
     }
   }
@@ -247,11 +245,7 @@
     overflow: hidden;
   }
 
-  @media (max-width: 600px) {
-    .features-grid {
-      grid-template-columns: 1fr;
-    }
-  }
+  @media (max-width: 600px) { .features-grid { grid-template-columns: 1fr; } }
 
   .feature-card {
     background: var(--charcoal);
@@ -259,15 +253,9 @@
     transition: background 0.2s;
   }
 
-  .feature-card:hover {
-    background: var(--mid);
-  }
+  .feature-card:hover { background: var(--mid); }
 
-  .feature-icon {
-    font-size: 32px;
-    margin-bottom: 20px;
-    display: block;
-  }
+  .feature-icon { font-size: 32px; margin-bottom: 20px; display: block; }
 
   .feature-card h3 {
     font-family: 'Cormorant Garamond', serif;
@@ -277,44 +265,116 @@
     margin-bottom: 10px;
   }
 
-  .feature-card p {
-    font-size: 13px;
-    color: var(--text-muted);
-    font-weight: 300;
-    line-height: 1.7;
+  .feature-card p { font-size: 13px; color: var(--text-muted); font-weight: 300; line-height: 1.7; }
+
+  /* ── FOOTER INFO ── */
+  .footer-info {
+    background: var(--mid);
+    border-top: 1px solid rgba(201,169,110,0.15);
+    padding: 72px 5vw 0;
   }
 
-  /* ── FOOTER ── */
+  .footer-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 48px;
+    margin-bottom: 64px;
+  }
+
+  @media (max-width: 768px) {
+    .footer-grid { grid-template-columns: 1fr; gap: 40px; }
+  }
+
+  .footer-block-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 18px;
+  }
+
+  .footer-block h3 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 18px;
+    font-weight: 400;
+    color: var(--cream);
+    margin-bottom: 8px;
+    line-height: 1.4;
+  }
+
+  .footer-block p {
+    font-size: 13px;
+    color: var(--text-muted);
+    line-height: 1.8;
+    font-weight: 300;
+  }
+
+  .footer-block a {
+    color: var(--gold);
+    text-decoration: none;
+    font-size: 13px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 14px;
+    transition: color 0.2s;
+  }
+
+  .footer-block a:hover { color: #fff; }
+
+  .hours-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    color: var(--text-muted);
+    padding: 5px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    font-weight: 300;
+  }
+
+  .hours-row:last-child { border-bottom: none; }
+
+  .hours-row .day { color: var(--cream); }
+
+  .phone-link {
+    display: block;
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 22px;
+    font-weight: 400;
+    color: var(--cream);
+    text-decoration: none;
+    letter-spacing: 0.05em;
+    margin-bottom: 10px;
+    transition: color 0.2s;
+  }
+
+  .phone-link:hover { color: var(--gold); }
+
+  /* ── FOOTER BOTTOM ── */
   footer {
     background: var(--mid);
-    border-top: 1px solid rgba(201,169,110,0.1);
-    padding: 48px 5vw;
-    text-align: center;
+    border-top: 1px solid rgba(201,169,110,0.08);
+    padding: 28px 5vw;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
   }
 
   .footer-logo {
     font-family: 'Cormorant Garamond', serif;
-    font-size: 18px;
+    font-size: 16px;
     font-weight: 300;
     letter-spacing: 0.2em;
     color: var(--cream);
-    margin-bottom: 8px;
   }
 
-  .footer-sub {
-    font-family: 'Inter', sans-serif;
+  .footer-copy {
     font-size: 11px;
     color: var(--text-muted);
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-  }
-
-  .footer-divider {
-    width: 32px;
-    height: 1px;
-    background: var(--gold);
-    opacity: 0.4;
-    margin: 20px auto;
+    letter-spacing: 0.05em;
   }
 </style>
 </head>
@@ -323,78 +383,262 @@
 <!-- HEADER -->
 <header>
   <a href="/" class="logo">RAZ<span>A</span>LI</a>
-  <a href="/book" class="btn-gold">Book Now</a>
+  <div class="header-right">
+    <div class="lang-toggle">
+      <button class="lang-btn active" onclick="setLang('az')">AZ</button>
+      <button class="lang-btn" onclick="setLang('en')">EN</button>
+      <button class="lang-btn" onclick="setLang('ru')">RU</button>
+    </div>
+    <a href="/book" class="btn-gold" id="btnBook">Rezervasiya et</a>
+  </div>
 </header>
 
 <!-- HERO -->
 <section class="hero">
-  <div class="hero-eyebrow">RAZALI Smart Booking</div>
-  <h1>Your appointment,<br><em>booked in seconds.</em></h1>
+  <div class="hero-eyebrow" id="heroEyebrow">RAZALI Smart Booking</div>
+  <h1 id="heroH1">Görüşünüz,<br><em>saniyələr içində.</em></h1>
   <div class="hero-line"></div>
-  <p>RAZALI Smart Booking &mdash; available 24/7 via WhatsApp and web. No phone calls, no waiting, no double-bookings.</p>
-  <a href="/book" class="btn-gold">Book an Appointment &rarr;</a>
+  <p id="heroP">RAZALI — 24/7 onlayn rezervasiya. Zəng etmədən, gözləmədən, ikiqat rezervasiya olmadan.</p>
+  <a href="/book" class="btn-gold" id="heroBtn">Rezervasiya et &rarr;</a>
 </section>
 
 <!-- HOW IT WORKS -->
 <section class="steps-section">
-  <div class="section-eyebrow">Simple process</div>
-  <div class="section-title">How it works</div>
+  <div class="section-eyebrow" id="stepsEyebrow">Sadə proses</div>
+  <div class="section-title" id="stepsTitle">Necə işləyir</div>
   <div class="steps-grid">
     <div class="step">
       <div class="step-number">01</div>
-      <span class="step-icon">💬</span>
-      <h3>Message on WhatsApp</h3>
-      <p>Send any message to our WhatsApp number. The bot greets you instantly in your language — Azerbaijani, English, or Russian.</p>
+      <span class="step-icon">🌐</span>
+      <h3 id="s1h">Xidmət seçin</h3>
+      <p id="s1p">Veb-saytımıza daxil olun, xidməti, ustanı, tarixi və vaxtı seçin. Real vaxtda mövcudluq, həmişə dəqiq.</p>
     </div>
     <div class="step">
       <div class="step-number">02</div>
-      <span class="step-icon">✨</span>
-      <h3>Choose your service</h3>
-      <p>Pick your service, master, date and time on our mobile-friendly booking page. Real-time availability, always up to date.</p>
+      <span class="step-icon">✅</span>
+      <h3 id="s2h">Məlumatları daxil edin</h3>
+      <p id="s2p">Adınızı, telefon nömrənizi və e-poçtunuzu daxil edin. Sadəcə bir dəqiqə çəkir.</p>
     </div>
     <div class="step">
       <div class="step-number">03</div>
-      <span class="step-icon">✅</span>
-      <h3>You're confirmed</h3>
-      <p>Receive instant WhatsApp confirmation with all your booking details. A reminder arrives 24 hours before your appointment.</p>
+      <span class="step-icon">📧</span>
+      <h3 id="s3h">Təsdiq alın</h3>
+      <p id="s3p">E-poçtunuza ani təsdiq məktubu gəlir. Görüşdən 24 saat əvvəl xatırlatma göndərilir.</p>
     </div>
   </div>
 </section>
 
 <!-- FEATURES -->
 <section>
-  <div class="section-eyebrow">Why RAZALI</div>
-  <div class="section-title">Everything you need,<br>nothing you don't.</div>
+  <div class="section-eyebrow" id="featEyebrow">Niyə RAZALI</div>
+  <div class="section-title" id="featTitle">Lazım olan hər şey,<br>lazımsız heç nə.</div>
   <div class="features-grid">
     <div class="feature-card">
       <span class="feature-icon">🌐</span>
-      <h3>3 Languages</h3>
-      <p>Azerbaijani, English, Russian. The bot detects your language automatically.</p>
+      <h3 id="f1h">3 Dil</h3>
+      <p id="f1p">Azərbaycan, İngilis, Rus. Öz dilinizdə rezervasiya edin.</p>
     </div>
     <div class="feature-card">
       <span class="feature-icon">⏰</span>
-      <h3>24/7 Booking</h3>
-      <p>No phone calls, no waiting. Book at midnight if you want — we're always open.</p>
+      <h3 id="f2h">24/7 Rezervasiya</h3>
+      <p id="f2p">Zəng etməyə ehtiyac yoxdur. Gecə yarısı da rezervasiya edə bilərsiniz.</p>
     </div>
     <div class="feature-card">
       <span class="feature-icon">📅</span>
-      <h3>Smart Calendar</h3>
-      <p>Real-time availability per master. Zero double-bookings, always accurate.</p>
+      <h3 id="f3h">Ağıllı Təqvim</h3>
+      <p id="f3p">Hər usta üçün real vaxtda mövcudluq. İkiqat rezervasiya sıfırdır.</p>
     </div>
     <div class="feature-card">
       <span class="feature-icon">🔔</span>
-      <h3>Auto Reminders</h3>
-      <p>WhatsApp reminder sent 24 hours before your appointment. Never miss a session.</p>
+      <h3 id="f4h">Avtomatik Xatırlatma</h3>
+      <p id="f4p">Görüşdən 24 saat əvvəl e-poçtla xatırlatma. Heç nəyi qaçırmayın.</p>
     </div>
   </div>
 </section>
 
-<!-- FOOTER -->
+<!-- FOOTER INFO SECTION -->
+<div class="footer-info">
+  <div class="footer-grid">
+
+    <!-- Location -->
+    <div class="footer-block">
+      <div class="footer-block-label" id="lblLocation">Ünvan</div>
+      <h3>Əziz Əliyev 11<br>Bakı, Azərbaycan</h3>
+      <a href="https://maps.google.com/?q=Əziz+Əliyev+11+Baku+Azerbaijan" target="_blank" rel="noopener" id="mapsLink">
+        🗺 Google Maps &rarr;
+      </a>
+    </div>
+
+    <!-- Hours -->
+    <div class="footer-block">
+      <div class="footer-block-label" id="lblHours">İş saatları</div>
+      <div class="hours-row"><span class="day" id="dayMon">Bazar ertəsi</span><span id="monVal">Bağlı</span></div>
+      <div class="hours-row"><span class="day" id="dayTue">Çərşənbə axşamı</span><span>09:00 – 23:00</span></div>
+      <div class="hours-row"><span class="day" id="dayWed">Çərşənbə</span><span>09:00 – 23:00</span></div>
+      <div class="hours-row"><span class="day" id="dayThu">Cümə axşamı</span><span>09:00 – 23:00</span></div>
+      <div class="hours-row"><span class="day" id="dayFri">Cümə</span><span>09:00 – 23:00</span></div>
+      <div class="hours-row"><span class="day" id="daySat">Şənbə</span><span>09:00 – 23:00</span></div>
+      <div class="hours-row"><span class="day" id="daySun">Bazar</span><span>09:00 – 23:00</span></div>
+    </div>
+
+    <!-- Contact -->
+    <div class="footer-block">
+      <div class="footer-block-label" id="lblContact">Əlaqə</div>
+      <a href="tel:+994557192949" class="phone-link">+994 55 719 29 49</a>
+      <p id="contactNote">Suallarınız üçün zəng edin və ya WhatsApp yazın.</p>
+    </div>
+
+  </div>
+</div>
+
+<!-- FOOTER BOTTOM -->
 <footer>
-  <div class="footer-logo">RAZALI Nails / Hair / Make Up</div>
-  <div class="footer-divider"></div>
-  <div class="footer-sub">Powered by RAZALI Smart Booking</div>
+  <div class="footer-logo">RAZALI — Nails · Hair</div>
+  <div class="footer-copy" id="footerCopy">© 2025 RAZALI. Bütün hüquqlar qorunur.</div>
 </footer>
 
+<script>
+const TX = {
+  az: {
+    btnBook:      'Rezervasiya et',
+    heroEyebrow:  'RAZALI Smart Booking',
+    heroH1:       'Görüşünüz,<br><em>saniyələr içində.</em>',
+    heroP:        'RAZALI — 24/7 onlayn rezervasiya. Zəng etmədən, gözləmədən, ikiqat rezervasiya olmadan.',
+    heroBtn:      'Rezervasiya et →',
+    stepsEyebrow: 'Sadə proses',
+    stepsTitle:   'Necə işləyir',
+    s1h: 'Xidmət seçin',
+    s1p: 'Veb-saytımıza daxil olun, xidməti, ustanı, tarixi və vaxtı seçin. Real vaxtda mövcudluq, həmişə dəqiq.',
+    s2h: 'Məlumatları daxil edin',
+    s2p: 'Adınızı, telefon nömrənizi və e-poçtunuzu daxil edin. Sadəcə bir dəqiqə çəkir.',
+    s3h: 'Təsdiq alın',
+    s3p: 'E-poçtunuza ani təsdiq məktubu gəlir. Görüşdən 24 saat əvvəl xatırlatma göndərilir.',
+    featEyebrow: 'Niyə RAZALI',
+    featTitle:   'Lazım olan hər şey,<br>lazımsız heç nə.',
+    f1h: '3 Dil', f1p: 'Azərbaycan, İngilis, Rus. Öz dilinizdə rezervasiya edin.',
+    f2h: '24/7 Rezervasiya', f2p: 'Zəng etməyə ehtiyac yoxdur. Gecə yarısı da rezervasiya edə bilərsiniz.',
+    f3h: 'Ağıllı Təqvim', f3p: 'Hər usta üçün real vaxtda mövcudluq. İkiqat rezervasiya sıfırdır.',
+    f4h: 'Avtomatik Xatırlatma', f4p: 'Görüşdən 24 saat əvvəl e-poçtla xatırlatma. Heç nəyi qaçırmayın.',
+    lblLocation:  'Ünvan',
+    lblHours:     'İş saatları',
+    lblContact:   'Əlaqə',
+    mapsLink:     '🗺 Google Maps →',
+    monVal:       'Bağlı',
+    dayMon: 'Bazar ertəsi', dayTue: 'Çərşənbə axşamı', dayWed: 'Çərşənbə',
+    dayThu: 'Cümə axşamı', dayFri: 'Cümə', daySat: 'Şənbə', daySun: 'Bazar',
+    contactNote:  'Suallarınız üçün zəng edin və ya WhatsApp yazın.',
+    footerCopy:   '© 2025 RAZALI. Bütün hüquqlar qorunur.',
+  },
+  en: {
+    btnBook:      'Book Now',
+    heroEyebrow:  'RAZALI Smart Booking',
+    heroH1:       'Your appointment,<br><em>booked in seconds.</em>',
+    heroP:        'RAZALI — 24/7 online booking. No phone calls, no waiting, no double-bookings.',
+    heroBtn:      'Book an Appointment →',
+    stepsEyebrow: 'Simple process',
+    stepsTitle:   'How it works',
+    s1h: 'Choose your service',
+    s1p: 'Visit our website, pick your service, master, date and time. Real-time availability, always accurate.',
+    s2h: 'Enter your details',
+    s2p: 'Enter your name, phone number and email. Takes less than a minute.',
+    s3h: 'Get confirmed',
+    s3p: 'An instant confirmation email is sent to you. A reminder follows 24 hours before your appointment.',
+    featEyebrow: 'Why RAZALI',
+    featTitle:   'Everything you need,<br>nothing you don\'t.',
+    f1h: '3 Languages', f1p: 'Azerbaijani, English, Russian. Book in your own language.',
+    f2h: '24/7 Booking', f2p: 'No phone calls needed. Book at midnight if you want — we\'re always open.',
+    f3h: 'Smart Calendar', f3p: 'Real-time availability per master. Zero double-bookings, always accurate.',
+    f4h: 'Auto Reminders', f4p: 'Email reminder sent 24 hours before your appointment. Never miss a session.',
+    lblLocation:  'Location',
+    lblHours:     'Working hours',
+    lblContact:   'Contact',
+    mapsLink:     '🗺 Google Maps →',
+    monVal:       'Closed',
+    dayMon: 'Monday', dayTue: 'Tuesday', dayWed: 'Wednesday',
+    dayThu: 'Thursday', dayFri: 'Friday', daySat: 'Saturday', daySun: 'Sunday',
+    contactNote:  'Call or WhatsApp us for any questions.',
+    footerCopy:   '© 2025 RAZALI. All rights reserved.',
+  },
+  ru: {
+    btnBook:      'Записаться',
+    heroEyebrow:  'RAZALI Smart Booking',
+    heroH1:       'Ваша запись,<br><em>за несколько секунд.</em>',
+    heroP:        'RAZALI — онлайн-запись 24/7. Без звонков, без ожидания, без двойных бронирований.',
+    heroBtn:      'Записаться →',
+    stepsEyebrow: 'Простой процесс',
+    stepsTitle:   'Как это работает',
+    s1h: 'Выберите услугу',
+    s1p: 'Зайдите на сайт, выберите услугу, мастера, дату и время. Актуальное расписание в реальном времени.',
+    s2h: 'Введите данные',
+    s2p: 'Укажите имя, номер телефона и email. Занимает меньше минуты.',
+    s3h: 'Получите подтверждение',
+    s3p: 'На email придёт мгновенное подтверждение. За 24 часа до визита — напоминание.',
+    featEyebrow: 'Почему RAZALI',
+    featTitle:   'Всё, что нужно,<br>ничего лишнего.',
+    f1h: '3 языка', f1p: 'Азербайджанский, английский, русский. Записывайтесь на своём языке.',
+    f2h: 'Запись 24/7', f2p: 'Никаких звонков. Записывайтесь хоть в полночь — мы всегда онлайн.',
+    f3h: 'Умный календарь', f3p: 'Актуальное расписание каждого мастера. Ноль двойных бронирований.',
+    f4h: 'Авто-напоминания', f4p: 'Email-напоминание за 24 часа до визита. Ничего не пропустите.',
+    lblLocation:  'Адрес',
+    lblHours:     'Часы работы',
+    lblContact:   'Контакт',
+    mapsLink:     '🗺 Google Maps →',
+    monVal:       'Выходной',
+    dayMon: 'Понедельник', dayTue: 'Вторник', dayWed: 'Среда',
+    dayThu: 'Четверг', dayFri: 'Пятница', daySat: 'Суббота', daySun: 'Воскресенье',
+    contactNote:  'Звоните или пишите в WhatsApp по любым вопросам.',
+    footerCopy:   '© 2025 RAZALI. Все права защищены.',
+  }
+};
+
+let lang = 'az';
+
+function setLang(l) {
+  lang = l;
+  document.querySelectorAll('.lang-btn').forEach(b =>
+    b.classList.toggle('active', b.textContent === l.toUpperCase())
+  );
+  const tx = TX[l];
+  const set = (id, html) => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
+  const txt = (id, val)  => { const el = document.getElementById(id); if (el) el.textContent = val; };
+
+  set('btnBook',      tx.btnBook);
+  txt('heroEyebrow',  tx.heroEyebrow);
+  set('heroH1',       tx.heroH1);
+  txt('heroP',        tx.heroP);
+  set('heroBtn',      tx.heroBtn);
+  txt('stepsEyebrow', tx.stepsEyebrow);
+  txt('stepsTitle',   tx.stepsTitle);
+  txt('s1h', tx.s1h); txt('s1p', tx.s1p);
+  txt('s2h', tx.s2h); txt('s2p', tx.s2p);
+  txt('s3h', tx.s3h); txt('s3p', tx.s3p);
+  txt('featEyebrow',  tx.featEyebrow);
+  set('featTitle',    tx.featTitle);
+  txt('f1h', tx.f1h); txt('f1p', tx.f1p);
+  txt('f2h', tx.f2h); txt('f2p', tx.f2p);
+  txt('f3h', tx.f3h); txt('f3p', tx.f3p);
+  txt('f4h', tx.f4h); txt('f4p', tx.f4p);
+  txt('lblLocation',  tx.lblLocation);
+  txt('lblHours',     tx.lblHours);
+  txt('lblContact',   tx.lblContact);
+  txt('mapsLink',     tx.mapsLink);
+  txt('monVal',       tx.monVal);
+  txt('dayMon', tx.dayMon); txt('dayTue', tx.dayTue); txt('dayWed', tx.dayWed);
+  txt('dayThu', tx.dayThu); txt('dayFri', tx.dayFri); txt('daySat', tx.daySat);
+  txt('daySun', tx.daySun);
+  txt('contactNote',  tx.contactNote);
+  txt('footerCopy',   tx.footerCopy);
+
+  document.documentElement.lang = l;
+}
+
+// Detect browser language on first load
+(function() {
+  const bl = (navigator.language || 'az').toLowerCase();
+  if (bl.startsWith('ru')) setLang('ru');
+  else if (bl.startsWith('en')) setLang('en');
+  else setLang('az');
+})();
+</script>
 </body>
 </html>

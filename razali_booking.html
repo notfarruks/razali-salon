@@ -702,7 +702,7 @@ function renderMgWeek() {
   let html = '';
   for (let i = 0; i < 7; i++) {
     const d   = new Date(ws); d.setDate(ws.getDate() + i);
-    const iso = d.toISOString().split('T')[0];
+    const iso = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
     const past = d < today;
     const ok   = !past && avail.has(iso);
     const isSel = mgSelDate === iso;
@@ -996,7 +996,7 @@ function renderWeek() {
   let html = '';
   for (let i = 0; i < 7; i++) {
     const d   = new Date(ws); d.setDate(ws.getDate() + i);
-    const iso = d.toISOString().split('T')[0];
+    const iso = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
     const past  = d < today;
     const ok    = !past && avail.has(iso);
     const isSel = selectedDate === iso;

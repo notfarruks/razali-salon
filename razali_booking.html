@@ -349,6 +349,7 @@ const T = {
     catCount: (n) => `${n} xidmət`,
     svcDur: (n) => `${n} dəq`,
     masterMeta: (sp, ex) => [sp, ex].filter(Boolean).join(' · '),
+    catNames: { Nails: 'Dırnaq', Hair: 'Saç', 'Make Up': 'Makiyaj', Brows: 'Qaş' },
     anyMaster: 'İstənilən usta', anyMasterMeta: 'Ən erkən mövcud vaxt',
     holdMsg: (s) => `⏱ ${s} — bu vaxt sizin üçün saxlanılır`,
     holdExpired: 'Vaxt bitdi. Yenidən vaxt seçin.',
@@ -401,6 +402,7 @@ const T = {
     catCount: (n) => `${n} services`,
     svcDur: (n) => `${n} min`,
     masterMeta: (sp, ex) => [sp, ex].filter(Boolean).join(' · '),
+    catNames: { Nails: 'Nails', Hair: 'Hair', 'Make Up': 'Make Up', Brows: 'Brows' },
     anyMaster: 'Any available master', anyMasterMeta: 'Earliest available slot',
     holdMsg: (s) => `⏱ ${s} — this slot is held for you`,
     holdExpired: 'Time expired. Please select a new slot.',
@@ -453,6 +455,7 @@ const T = {
     catCount: (n) => `${n} услуг`,
     svcDur: (n) => `${n} мин`,
     masterMeta: (sp, ex) => [sp, ex].filter(Boolean).join(' · '),
+    catNames: { Nails: 'Ногти', Hair: 'Волосы', 'Make Up': 'Макияж', Brows: 'Брови' },
     anyMaster: 'Любой мастер', anyMasterMeta: 'Ближайший свободный слот',
     holdMsg: (s) => `⏱ ${s} — слот держится для вас`,
     holdExpired: 'Время истекло. Выберите новое время.',
@@ -948,9 +951,10 @@ function renderCategories() {
   document.getElementById('catGrid').innerHTML = cats.map(cat => {
     const icon = CAT_ICONS[cat.toLowerCase()] || CAT_ICONS.default;
     const count = appData.services.filter(s => s.category === cat).length;
+    const label = (T[lang].catNames && T[lang].catNames[cat]) || cat;
     return `<div class="cat-card ${selectedCat===cat?'sel':''}" onclick="selectCat('${cat}')">
       <span class="cat-icon">${icon}</span>
-      <div class="cat-name">${cat}</div>
+      <div class="cat-name">${label}</div>
       <div class="cat-count">${t('catCount', count)}</div>
     </div>`;
   }).join('');
@@ -966,7 +970,7 @@ function selectCat(cat) {
 function renderServices(cat) {
   if (!appData) return;
   const svcs = appData.services.filter(s => s.category === cat);
-  document.getElementById('svcLabel').textContent = cat;
+  document.getElementById('svcLabel').textContent = (T[lang].catNames && T[lang].catNames[cat]) || cat;
   document.getElementById('svcItems').innerHTML = svcs.map(s => {
     const dur = appData.durations[s.id];
     return `<div class="svc-item ${selectedSvc&&selectedSvc.id===s.id?'sel':''}" onclick="selectSvc('${s.id}')">

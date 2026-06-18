@@ -585,8 +585,10 @@ function applyTranslations() {
   tx.ps.forEach((s,i)  => { const el=document.getElementById('ps'+i); if(el) el.textContent=s; });
   tx.ey.forEach((s,i)  => { const el=document.getElementById('ey'+i); if(el) el.textContent=s; });
   tx.st.forEach((s,i)  => { const el=document.getElementById('st'+i); if(el) el.textContent=s; });
-  document.getElementById('noDate').textContent = tx.noDate;
-  document.getElementById('manageBtn').textContent = tx.myBookingsBtn;
+  const noDateEl = document.getElementById('noDate');
+  if (noDateEl) noDateEl.textContent = tx.noDate;
+  const manageBtnEl = document.getElementById('manageBtn');
+  if (manageBtnEl) manageBtnEl.textContent = tx.myBookingsBtn;
   updateBottomBar();
 }
 

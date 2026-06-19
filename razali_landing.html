@@ -234,38 +234,6 @@
     }
   }
 
-  /* ── FEATURES ── */
-  .features-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 2px;
-    background: rgba(201,169,110,0.1);
-    border: 1px solid rgba(201,169,110,0.1);
-    border-radius: 4px;
-    overflow: hidden;
-  }
-
-  @media (max-width: 600px) { .features-grid { grid-template-columns: 1fr; } }
-
-  .feature-card {
-    background: var(--charcoal);
-    padding: 40px 36px;
-    transition: background 0.2s;
-  }
-
-  .feature-card:hover { background: var(--mid); }
-
-  .feature-icon { font-size: 32px; margin-bottom: 20px; display: block; }
-
-  .feature-card h3 {
-    font-family: 'Cormorant Garamond', serif;
-    font-size: 20px;
-    font-weight: 400;
-    color: var(--cream);
-    margin-bottom: 10px;
-  }
-
-  .feature-card p { font-size: 13px; color: var(--text-muted); font-weight: 300; line-height: 1.7; }
 
   /* ── FOOTER INFO ── */
   .footer-info {
@@ -428,33 +396,6 @@
   </div>
 </section>
 
-<!-- FEATURES -->
-<section>
-  <div class="section-eyebrow" id="featEyebrow">Niyə RAZALI</div>
-  <div class="section-title" id="featTitle">Lazım olan hər şey,<br>lazımsız heç nə.</div>
-  <div class="features-grid">
-    <div class="feature-card">
-      <span class="feature-icon">🌐</span>
-      <h3 id="f1h">3 Dil</h3>
-      <p id="f1p">Azərbaycan, İngilis, Rus. Öz dilinizdə rezervasiya edin.</p>
-    </div>
-    <div class="feature-card">
-      <span class="feature-icon">⏰</span>
-      <h3 id="f2h">24/7 Rezervasiya</h3>
-      <p id="f2p">Zəng etməyə ehtiyac yoxdur. Gecə yarısı da rezervasiya edə bilərsiniz.</p>
-    </div>
-    <div class="feature-card">
-      <span class="feature-icon">📅</span>
-      <h3 id="f3h">Ağıllı Təqvim</h3>
-      <p id="f3p">Hər usta üçün real vaxtda mövcudluq. İkiqat rezervasiya sıfırdır.</p>
-    </div>
-    <div class="feature-card">
-      <span class="feature-icon">🔔</span>
-      <h3 id="f4h">Avtomatik Xatırlatma</h3>
-      <p id="f4p">Görüşdən 24 saat əvvəl e-poçtla xatırlatma. Heç nəyi qaçırmayın.</p>
-    </div>
-  </div>
-</section>
 
 <!-- FOOTER INFO SECTION -->
 <div class="footer-info">
@@ -464,8 +405,14 @@
     <div class="footer-block">
       <div class="footer-block-label" id="lblLocation">Ünvan</div>
       <h3>Əziz Əliyev 11<br>Bakı, Azərbaycan</h3>
-      <a href="https://maps.google.com/?q=Əziz+Əliyev+11+Baku+Azerbaijan" target="_blank" rel="noopener" id="mapsLink">
-        🗺 Google Maps &rarr;
+      <a href="https://maps.google.com/?q=Əziz+Əliyev+11+Baku+Azerbaijan" target="_blank" rel="noopener" style="display:block;margin-top:16px;margin-bottom:0">
+        <iframe
+          src="https://maps.google.com/maps?q=Aziz+Aliyev+11+Baku+Azerbaijan&output=embed&z=16"
+          width="100%" height="160"
+          style="border:0;border-radius:4px;display:block;opacity:0.85;pointer-events:none"
+          loading="lazy" title="RAZALI location">
+        </iframe>
+        <span id="mapsLink" style="display:inline-flex;align-items:center;gap:6px;margin-top:10px;color:var(--gold);font-size:13px;text-decoration:none">🗺 Google Maps →</span>
       </a>
     </div>
 
@@ -513,12 +460,6 @@ const TX = {
     s2p: 'Adınızı, telefon nömrənizi və e-poçtunuzu daxil edin. Sadəcə bir dəqiqə çəkir.',
     s3h: 'Təsdiq alın',
     s3p: 'E-poçtunuza ani təsdiq məktubu gəlir. Görüşdən 24 saat əvvəl xatırlatma göndərilir.',
-    featEyebrow: 'Niyə RAZALI',
-    featTitle:   'Lazım olan hər şey,<br>lazımsız heç nə.',
-    f1h: '3 Dil', f1p: 'Azərbaycan, İngilis, Rus. Öz dilinizdə rezervasiya edin.',
-    f2h: '24/7 Rezervasiya', f2p: 'Zəng etməyə ehtiyac yoxdur. Gecə yarısı da rezervasiya edə bilərsiniz.',
-    f3h: 'Ağıllı Təqvim', f3p: 'Hər usta üçün real vaxtda mövcudluq. İkiqat rezervasiya sıfırdır.',
-    f4h: 'Avtomatik Xatırlatma', f4p: 'Görüşdən 24 saat əvvəl e-poçtla xatırlatma. Heç nəyi qaçırmayın.',
     lblLocation:  'Ünvan',
     lblHours:     'İş saatları',
     lblContact:   'Əlaqə',
@@ -543,12 +484,6 @@ const TX = {
     s2p: 'Enter your name, phone number and email. Takes less than a minute.',
     s3h: 'Get confirmed',
     s3p: 'An instant confirmation email is sent to you. A reminder follows 24 hours before your appointment.',
-    featEyebrow: 'Why RAZALI',
-    featTitle:   'Everything you need,<br>nothing you don\'t.',
-    f1h: '3 Languages', f1p: 'Azerbaijani, English, Russian. Book in your own language.',
-    f2h: '24/7 Booking', f2p: 'No phone calls needed. Book at midnight if you want — we\'re always open.',
-    f3h: 'Smart Calendar', f3p: 'Real-time availability per master. Zero double-bookings, always accurate.',
-    f4h: 'Auto Reminders', f4p: 'Email reminder sent 24 hours before your appointment. Never miss a session.',
     lblLocation:  'Location',
     lblHours:     'Working hours',
     lblContact:   'Contact',
@@ -573,12 +508,6 @@ const TX = {
     s2p: 'Укажите имя, номер телефона и email. Занимает меньше минуты.',
     s3h: 'Получите подтверждение',
     s3p: 'На email придёт мгновенное подтверждение. За 24 часа до визита — напоминание.',
-    featEyebrow: 'Почему RAZALI',
-    featTitle:   'Всё, что нужно,<br>ничего лишнего.',
-    f1h: '3 языка', f1p: 'Азербайджанский, английский, русский. Записывайтесь на своём языке.',
-    f2h: 'Запись 24/7', f2p: 'Никаких звонков. Записывайтесь хоть в полночь — мы всегда онлайн.',
-    f3h: 'Умный календарь', f3p: 'Актуальное расписание каждого мастера. Ноль двойных бронирований.',
-    f4h: 'Авто-напоминания', f4p: 'Email-напоминание за 24 часа до визита. Ничего не пропустите.',
     lblLocation:  'Адрес',
     lblHours:     'Часы работы',
     lblContact:   'Контакт',
@@ -612,12 +541,6 @@ function setLang(l) {
   txt('s1h', tx.s1h); txt('s1p', tx.s1p);
   txt('s2h', tx.s2h); txt('s2p', tx.s2p);
   txt('s3h', tx.s3h); txt('s3p', tx.s3p);
-  txt('featEyebrow',  tx.featEyebrow);
-  set('featTitle',    tx.featTitle);
-  txt('f1h', tx.f1h); txt('f1p', tx.f1p);
-  txt('f2h', tx.f2h); txt('f2p', tx.f2p);
-  txt('f3h', tx.f3h); txt('f3p', tx.f3p);
-  txt('f4h', tx.f4h); txt('f4p', tx.f4p);
   txt('lblLocation',  tx.lblLocation);
   txt('lblHours',     tx.lblHours);
   txt('lblContact',   tx.lblContact);

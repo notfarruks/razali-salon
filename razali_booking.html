@@ -154,7 +154,7 @@ body{background:var(--cream);color:var(--charcoal);font-family:var(--fb);font-si
 .manage-view{display:none;padding:24px 24px 100px;animation:fadeIn .3s ease}
 .manage-view.visible{display:block}
 .mg-booking-card{background:var(--white);border:1px solid var(--cream-dark);padding:18px;margin-bottom:12px}
-.mg-booking-id{font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--gold);font-weight:600;margin-bottom:10px}
+.mg-booking-id{font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--gold);font-weight:600}
 .mg-booking-row{display:flex;gap:8px;padding:4px 0;font-size:13px}
 .mg-booking-label{color:var(--stone);min-width:60px}
 .mg-booking-val{font-weight:500}
@@ -166,6 +166,15 @@ body{background:var(--cream);color:var(--charcoal);font-family:var(--fb);font-si
 .mg-empty{text-align:center;padding:40px 0;color:var(--stone);font-size:14px}
 .mg-success{text-align:center;padding:30px 0}
 .mg-success-icon{font-size:40px;margin-bottom:12px}
+/* Cancelled / past card states */
+.mg-card-cancelled{opacity:.7;border-color:var(--stone)!important}
+.mg-card-past{opacity:.55}
+.mg-booking-id-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.mg-status-badge{font-size:10px;font-weight:700;letter-spacing:.1em;padding:3px 8px;border-radius:2px}
+.mg-badge-cancelled{background:#5a1a1a;color:#e07070}
+.mg-badge-past{background:#2a2a28;color:var(--stone)}
+.mg-too-late{margin-top:14px;padding:10px 12px;border:1px solid #3a3a38;font-size:12px;color:var(--stone);line-height:1.5}
+.mg-contact-salon{margin-top:4px;color:var(--gold);font-weight:600}
 </style>
 </head>
 <body>
@@ -377,13 +386,16 @@ const T = {
     mgPhoneLbl: 'Telefon nömrəniz',
     mgFind: 'Axtar',
     mgBack: '← Geri',
-    mgNone: 'Aktiv rezervasiya tapılmadı.',
+    mgNone: 'Rezervasiya tapılmadı.',
     mgCancel: 'Ləğv et',
     mgReschedule: 'Dəyiş',
     mgCancelConfirm: 'Bu rezervasiyanı ləğv etmək istəyirsiniz?',
     mgCancelOk: '✓ Rezervasiya ləğv edildi',
     mgCancelErr: 'Xəta. Yenidən cəhd edin.',
-    mgCancelTooLate: '⚠️ Görüşə 2 saatdan az qaldığında ləğv etmək mümkün deyil. Salonla əlaqə saxlayın.',
+    mgCancelTooLate: 'Görüşə 60 dəqiqədən az qaldığında ləğv etmək mümkün deyil.',
+    mgContactSalon: 'Ləğv etmək üçün salonla əlaqə saxlayın: +994 55 719 29 49',
+    mgCancelledBadge: 'LƏĞV EDİLDİ',
+    mgPastBadge: 'TAMAMLANDI',
     myBookingsBtn: '📋 Rezervasiyam',
     doneHome: '← Ana səhifəyə qayıt',
     mgRscEyebrow: 'Yeni vaxt seçin',
@@ -430,13 +442,16 @@ const T = {
     mgPhoneLbl: 'Your phone number',
     mgFind: 'Search',
     mgBack: '← Back',
-    mgNone: 'No active bookings found.',
+    mgNone: 'No bookings found.',
     mgCancel: 'Cancel',
     mgReschedule: 'Reschedule',
     mgCancelConfirm: 'Cancel this booking?',
     mgCancelOk: '✓ Booking cancelled',
     mgCancelErr: 'Error. Please try again.',
-    mgCancelTooLate: '⚠️ Cannot cancel within 2 hours of appointment. Please contact the salon directly.',
+    mgCancelTooLate: 'Cannot cancel within 60 minutes of appointment.',
+    mgContactSalon: 'To cancel, contact the salon: +994 55 719 29 49',
+    mgCancelledBadge: 'CANCELLED',
+    mgPastBadge: 'COMPLETED',
     myBookingsBtn: '📋 My Bookings',
     doneHome: '← Back to home',
     mgRscEyebrow: 'Choose new time',
@@ -483,13 +498,16 @@ const T = {
     mgPhoneLbl: 'Ваш номер телефона',
     mgFind: 'Найти',
     mgBack: '← Назад',
-    mgNone: 'Активных записей не найдено.',
+    mgNone: 'Записей не найдено.',
     mgCancel: 'Отменить',
     mgReschedule: 'Перенести',
     mgCancelConfirm: 'Отменить эту запись?',
     mgCancelOk: '✓ Запись отменена',
     mgCancelErr: 'Ошибка. Попробуйте снова.',
-    mgCancelTooLate: '⚠️ Отменить запись за 2 часа до визита невозможно. Свяжитесь с салоном.',
+    mgCancelTooLate: 'Отменить запись за 60 минут до визита невозможно.',
+    mgContactSalon: 'Для отмены свяжитесь с салоном: +994 55 719 29 49',
+    mgCancelledBadge: 'ОТМЕНЕНО',
+    mgPastBadge: 'ЗАВЕРШЕНО',
     myBookingsBtn: '📋 Мои записи',
     doneHome: '← На главную',
     mgRscEyebrow: 'Выберите новое время',
@@ -659,18 +677,52 @@ function renderMgBookings() {
     el.innerHTML = `<div class="mg-empty">${t('mgNone')}</div>`;
     return;
   }
+  const now = new Date();
   el.innerHTML = mgBookings.map((b,i) => {
     const df = fmtDate(b.date);
-    return `<div class="mg-booking-card">
-      <div class="mg-booking-id">Booking #${b.booking_id}</div>
+    const isCancelled = b.status === 'Cancelled';
+
+    // Determine if appointment is in the past
+    const apptDt = new Date(`${b.date}T${b.time}:00`);
+    const isPast = apptDt < now;
+
+    // Determine if within 60-minute cancel window
+    const minsUntil = (apptDt - now) / 60000;
+    const tooLate = !isCancelled && !isPast && minsUntil < 60;
+
+    // Card state class
+    const cardClass = isCancelled ? ' mg-card-cancelled' : (isPast ? ' mg-card-past' : '');
+
+    // Status badge
+    let badge = '';
+    if (isCancelled) badge = `<span class="mg-status-badge mg-badge-cancelled">${t('mgCancelledBadge')}</span>`;
+    else if (isPast)  badge = `<span class="mg-status-badge mg-badge-past">${t('mgPastBadge')}</span>`;
+
+    // Action area
+    let actions = '';
+    if (!isCancelled && !isPast) {
+      if (tooLate) {
+        actions = `<div class="mg-too-late">
+          <div>${t('mgCancelTooLate')}</div>
+          <div class="mg-contact-salon">${t('mgContactSalon')}</div>
+        </div>`;
+      } else {
+        actions = `<div class="mg-actions">
+          <button class="mg-btn-cancel" onclick="cancelBooking(${i})">${t('mgCancel')}</button>
+          <button class="mg-btn-rsc" onclick="startReschedule(${i})">${t('mgReschedule')}</button>
+        </div>`;
+      }
+    }
+
+    return `<div class="mg-booking-card${cardClass}">
+      <div class="mg-booking-id-row">
+        <span class="mg-booking-id">Booking #${b.booking_id}</span>${badge}
+      </div>
       <div class="mg-booking-row"><span class="mg-booking-label">💅</span><span class="mg-booking-val">${b.service_name}</span></div>
       <div class="mg-booking-row"><span class="mg-booking-label">👩</span><span class="mg-booking-val">${b.master_name}</span></div>
       <div class="mg-booking-row"><span class="mg-booking-label">📅</span><span class="mg-booking-val">${df} • ${b.time}</span></div>
       <div class="mg-booking-row"><span class="mg-booking-label">💰</span><span class="mg-booking-val">${b.price} AZN</span></div>
-      <div class="mg-actions">
-        <button class="mg-btn-cancel" onclick="cancelBooking(${i})">${t('mgCancel')}</button>
-        <button class="mg-btn-rsc" onclick="startReschedule(${i})">${t('mgReschedule')}</button>
-      </div>
+      ${actions}
     </div>`;
   }).join('');
 }
@@ -686,7 +738,8 @@ async function cancelBooking(idx) {
     });
     showLoading(false);
     if (r.ok) {
-      mgBookings.splice(idx, 1);
+      // Mark as cancelled in place — keep it visible with cancelled badge
+      mgBookings[idx].status = 'Cancelled';
       renderMgBookings();
       showToast(t('mgCancelOk'));
     } else if (r.status === 400) {

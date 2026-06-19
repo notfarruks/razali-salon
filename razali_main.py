@@ -49,7 +49,7 @@ executor = ThreadPoolExecutor(max_workers=4)
 BOOKING_URL      = os.environ.get("BOOKING_URL", "https://razali-salon-production.up.railway.app/book")
 LANDING_URL      = BOOKING_URL.rsplit("/book", 1)[0] or BOOKING_URL  # base URL for landing page
 SALON_PHONE      = os.environ.get("SALON_PHONE", "+994XXXXXXXXX")
-CANCEL_CUTOFF_HOURS = int(os.environ.get("CANCEL_CUTOFF_HOURS", "2"))  # min hours before appt to allow cancel
+CANCEL_CUTOFF_MINUTES = int(os.environ.get("CANCEL_CUTOFF_MINUTES", "60"))  # minutes before appt to allow cancel
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "razali2026")
 TWILIO_SID       = os.environ.get("TWILIO_ACCOUNT_SID", "")
 TWILIO_TOKEN     = os.environ.get("TWILIO_AUTH_TOKEN", "")
@@ -299,18 +299,23 @@ def fetch_all_bookings(phone: str) -> list:
     try:
         db    = get_sheets().open("RAZALI_DB")
         rows  = db.worksheet("Bookings").get_all_records()
-        today = datetime.now().strftime("%Y-%m-%d")
+        # Show bookings from last 30 days onwards
+        cutoff = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
         out   = []
         for i, b in enumerate(rows, 2):
             cp = str(b.get("phone","")).replace("whatsapp:","").strip()
             up = phone.replace("whatsapp:","").strip()
-            if cp == up and str(b.get("status")) == "Confirmed" and str(b.get("date")) >= today:
+            status = str(b.get("status",""))
+            if (cp == up and
+                status in ("Confirmed", "Cancelled") and
+                str(b.get("date","")) >= cutoff):
                 out.append({"row": i,
                             "booking_id":  str(b.get("id")),
                             "master_id":   str(b.get("master_id")),
                             "service_id":  str(b.get("service_id")),
                             "date":        str(b.get("date")),
                             "time":        str(b.get("time")),
+                            "status":      status,
                             "customer_name": str(b.get("customer_name"))})
         out.sort(key=lambda x: (x["date"], x["time"]))
         return out
@@ -703,8 +708,8 @@ async def api_cancel_booking(req: CancelWebRequest):
     # Enforce cancellation cutoff
     try:
         appt_dt = datetime.strptime(f"{b['date']} {b['time']}", "%Y-%m-%d %H:%M")
-        if datetime.now() > appt_dt - timedelta(hours=CANCEL_CUTOFF_HOURS):
-            raise HTTPException(400, f"Cancellations must be made at least {CANCEL_CUTOFF_HOURS} hours before the appointment.")
+        if datetime.now() > appt_dt - timedelta(minutes=CANCEL_CUTOFF_MINUTES):
+            raise HTTPException(400, f"Cancellations must be made at least {CANCEL_CUTOFF_MINUTES} minutes before the appointment. Please contact the salon directly.")
     except HTTPException:
         raise
     except Exception:
@@ -968,13 +973,13 @@ async def whatsapp_webhook(request: Request):
             # Enforce cancellation cutoff
             try:
                 appt_dt = datetime.strptime(f"{b['date']} {b['time']}", "%Y-%m-%d %H:%M")
-                if datetime.now() > appt_dt - timedelta(hours=CANCEL_CUTOFF_HOURS):
+                if datetime.now() > appt_dt - timedelta(minutes=CANCEL_CUTOFF_MINUTES):
                     session.update({"state":"IDLE","cancel_booking":None})
                     save_wa_session(From, session)
                     msgs = {
-                        "en": f"⚠️ Sorry, cancellations must be made at least {CANCEL_CUTOFF_HOURS} hours before your appointment. Please contact us directly: {SALON_PHONE}",
-                        "ru": f"⚠️ Отменить запись можно не менее чем за {CANCEL_CUTOFF_HOURS} ч до визита. Свяжитесь с нами: {SALON_PHONE}",
-                        "az": f"⚠️ Rezervasiyanı görüşdən ən az {CANCEL_CUTOFF_HOURS} saat əvvəl ləğv etmək mümkündür. Bizimlə əlaqə: {SALON_PHONE}",
+                        "en": f"⚠️ Sorry, cancellations must be made at least {CANCEL_CUTOFF_MINUTES} minutes before your appointment. Please contact us directly: {SALON_PHONE}",
+                        "ru": f"⚠️ Отменить запись можно не менее чем за {CANCEL_CUTOFF_MINUTES} мин до визита. Свяжитесь с нами: {SALON_PHONE}",
+                        "az": f"⚠️ Rezervasiyanı görüşdən ən az {CANCEL_CUTOFF_MINUTES} dəqiqə əvvəl ləğv etmək mümkündür. Bizimlə əlaqə: {SALON_PHONE}",
                     }
                     return reply_wa(msgs[lang])
             except Exception:
